@@ -20,3 +20,14 @@ An internal AI platform that allows users to upload documents to a central Knowl
 ### 3. Chat Sessions
 - Users create chat sessions inside a Workspace.
 - When the user asks a question, the AI *only* searches the documents attached to that specific Workspace.
+
+## Completed Features
+- [x] Workspace CRUD (Create, Read, Update, Delete)
+- [x] Central Knowledge Base (upload, list, delete documents)
+- [x] Many-to-Many document-workspace linking
+- [x] File storage on disk (`backend/uploaded_docs/`)
+
+## Pending Features
+- [ ] RAG Pipeline (text extraction, chunking, embedding, vector storage)
+- [ ] Chat Q&A
+- [ ] Code Generation
