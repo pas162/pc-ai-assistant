@@ -8,12 +8,22 @@ const api = axios.create({
 
 // ─── Workspace API calls ───────────────────────────────
 
+export interface Document {
+  id: string;
+  filename: string;
+  file_type: string | null;
+  file_size: number | null;
+  status: string;
+  created_at: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
   description: string | null;
   created_at: string;
   updated_at: string;
+  documents: Document[];
 }
 
 export interface CreateWorkspaceRequest {
@@ -51,4 +61,36 @@ export const updateWorkspace = async (
 // DELETE /workspaces/:id — delete a workspace
 export const deleteWorkspace = async (id: string): Promise<void> => {
   await api.delete(`/workspaces/${id}`);
+};
+
+// GET /documents — fetch all documents in the Knowledge Base
+export const getDocuments = async (): Promise<Document[]> => {
+  const response = await api.get('/documents');
+  return response.data;
+};
+
+// POST /documents — upload a new file
+export const uploadDocument = async (file: File): Promise<Document> => {
+  // To send a file, we MUST use FormData, not JSON!
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await api.post('/documents', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+// ─── Workspace-Document Linking API calls ──────────────
+
+// POST /workspaces/{ws_id}/documents/{doc_id}
+export const linkDocumentToWorkspace = async (workspaceId: string, documentId: string): Promise<void> => {
+  await api.post(`/workspaces/${workspaceId}/documents/${documentId}`);
+};
+
+// DELETE /workspaces/{ws_id}/documents/{doc_id}
+export const unlinkDocumentFromWorkspace = async (workspaceId: string, documentId: string): Promise<void> => {
+  await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
 };
