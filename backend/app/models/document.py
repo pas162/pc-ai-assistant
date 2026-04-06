@@ -18,14 +18,6 @@ class Document(Base):
         default=lambda: str(uuid.uuid4())
     )
 
-    # Foreign key — links this document to a workspace
-    # Like @ManyToOne + @JoinColumn in JPA
-    workspace_id: Mapped[str] = mapped_column(
-        String(36),
-        ForeignKey("workspaces.id"),
-        nullable=False
-    )
-
     # Original file name (e.g. "report.pdf")
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -46,9 +38,12 @@ class Document(Base):
         default=datetime.utcnow
     )
 
-    # Relationship — lets us do document.workspace to get the Workspace object
-    # Like @ManyToOne in JPA
-    workspace: Mapped["Workspace"] = relationship("Workspace")
+    # A document can be linked to many workspaces
+    workspaces: Mapped[list["Workspace"]] = relationship(
+        "Workspace",
+        secondary="workspace_documents",
+        back_populates="documents"
+    )
 
     def __repr__(self):
         return f"<Document id={self.id} filename={self.filename}>"

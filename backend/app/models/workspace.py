@@ -1,9 +1,15 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Text, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import String, Text, DateTime, Table, Column, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
+workspace_document_table = Table(
+    "workspace_documents",
+    Base.metadata,
+    Column("workspace_id", String(36), ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True),
+    Column("document_id", String(36), ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True)
+)
 
 class Workspace(Base):
     """
@@ -34,6 +40,13 @@ class Workspace(Base):
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow
+    )
+
+        # A workspace can have many documents
+    documents: Mapped[list["Document"]] = relationship(
+        "Document",
+        secondary=workspace_document_table,
+        back_populates="workspaces"
     )
 
     def __repr__(self):

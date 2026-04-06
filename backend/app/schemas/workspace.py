@@ -11,6 +11,13 @@ class WorkspaceCreate(BaseModel):
     name: str
     description: Optional[str] = None
 
+class WorkspaceUpdate(BaseModel):
+    """
+    Shape of JSON when UPDATING a workspace.
+    All fields are optional — only send what you want to change.
+    """
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 class WorkspaceResponse(BaseModel):
     """
