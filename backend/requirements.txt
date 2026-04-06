@@ -9,3 +9,6 @@ pydantic-settings==2.4.0
 sqlalchemy==2.0.35
 psycopg2-binary==2.9.11
 alembic==1.13.3
+
+# Vector database
+chromadb==1.5.5

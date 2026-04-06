@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import get_settings
+from app.routes import workspaces
 
 # Get our settings
 settings = get_settings()
@@ -11,6 +12,7 @@ app = FastAPI(
     version="0.1.0"
 )
 
+app.include_router(workspaces.router)
 
 @app.get("/health")
 def health_check():
