@@ -24,7 +24,7 @@ An internal AI platform with:
 - [x] Step 2: Backend skeleton (FastAPI)
 - [x] Step 3: Database setup (PostgreSQL + models)
 - [x] Step 4: Vector database setup (ChromaDB)
-- [ ] Step 5: LLM API connection
+- [x] Step 5: LLM API connection
 - [ ] Step 6: Basic frontend scaffold (React)
 
 ### Sprint 2 — Workspace Management (Steps 7-10)

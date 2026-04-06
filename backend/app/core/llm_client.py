@@ -9,7 +9,7 @@ def chat_with_llm(messages: list, model: str = None) -> str:
     Sends messages to the LLM API and returns the response text.
     """
     request_body = {
-        "model": model or "databricks-claude-haiku-4-5",
+        "model": model or "databricks-gemini-3-1-flash-lite",
         "messages": messages
     }
 
