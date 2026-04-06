@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { getDocuments, uploadDocument } from "../api";
+import { getDocuments, uploadDocument, deleteDocument } from "../api";
 import type { Document } from "../api";
 
 export default function KnowledgeBase() {
@@ -41,6 +41,23 @@ export default function KnowledgeBase() {
       setUploading(false);
       // Reset the input so the same file can be uploaded again if needed
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // ── Delete ─────────────────────────────────────────
+  const handleDelete = async (doc: Document) => {
+    if (
+      !window.confirm(
+        `Delete "${doc.filename}"?\n\nThis will remove it from ALL workspaces. This cannot be undone.`,
+      )
+    )
+      return;
+
+    try {
+      await deleteDocument(doc.id);
+      await fetchDocs(); // Refresh the list
+    } catch {
+      alert("Failed to delete document");
     }
   };
 
@@ -91,24 +108,30 @@ export default function KnowledgeBase() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">
                   Filename
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                   Size
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                   Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  Action
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {documents.map((doc) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td
+                    className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate"
+                    title={doc.filename}
+                  >
                     {doc.filename}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 uppercase">
@@ -123,6 +146,14 @@ export default function KnowledgeBase() {
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                       {doc.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => handleDelete(doc)}
+                      className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    >
+                      🗑️ Delete
+                    </button>
                   </td>
                 </tr>
               ))}

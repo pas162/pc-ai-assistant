@@ -54,3 +54,29 @@ def list_documents(db: Session = Depends(get_db)):
     List all documents in the Knowledge Base.
     """
     return db.query(Document).all()
+
+
+@router.delete("/{document_id}")
+def delete_document(document_id: str, db: Session = Depends(get_db)):
+    """
+    Delete a document from the Knowledge Base.
+    Also deletes the physical file from disk.
+    Also removes all workspace links automatically (CASCADE).
+    """
+    # Step 1: Find the document record
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Step 2: Delete the physical file from disk
+    # We need to find the file using the pattern: {id}_{filename}
+    file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    # Step 3: Delete the database record
+    # PostgreSQL CASCADE will automatically clean up workspace_documents links
+    db.delete(document)
+    db.commit()
+
+    return {"message": f"Document '{document.filename}' deleted successfully"}
