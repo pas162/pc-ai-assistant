@@ -1,8 +1,14 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING  # ← 1. Import this
+
 from sqlalchemy import String, Text, DateTime, Table, Column, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+
+# ← 2. Add this block to fix the error safely
+if TYPE_CHECKING:
+    from app.models.document import Document
 
 workspace_document_table = Table(
     "workspace_documents",

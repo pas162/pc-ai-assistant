@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-
+from app.schemas.document import DocumentResponse 
 
 class WorkspaceCreate(BaseModel):
     """
@@ -29,6 +29,8 @@ class WorkspaceResponse(BaseModel):
     description: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    documents: list[DocumentResponse] = []
 
     class Config:
         from_attributes = True  # allows reading from SQLAlchemy model

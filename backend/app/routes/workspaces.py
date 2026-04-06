@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
 from app.models.workspace import Workspace
+from app.models.document import Document
 from app.schemas.workspace import WorkspaceCreate, WorkspaceResponse, WorkspaceUpdate
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -75,3 +76,63 @@ def delete_workspace(workspace_id: str, db: Session = Depends(get_db)):
     db.delete(workspace)
     db.commit()
     return {"message": "Workspace deleted successfully"}
+
+@router.post("/{workspace_id}/documents/{document_id}")
+def link_document_to_workspace(
+    workspace_id: str, 
+    document_id: str, 
+    db: Session = Depends(get_db)
+):
+    """
+    Attach an existing document from the Knowledge Base to a Workspace.
+    """
+    # Step 1: Find the Workspace
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Step 2: Find the Document
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Step 3: Check if it's already linked (prevent duplicates)
+    if document in workspace.documents:
+        return {"message": "Document is already attached to this workspace"}
+
+    # Step 4: Create the link!
+    # Because we set up the SQLAlchemy relationship, this is incredibly easy.
+    # We just append the document to the workspace's list of documents.
+    workspace.documents.append(document)
+    
+    db.commit()
+    
+    return {"message": f"Successfully attached '{document.filename}' to '{workspace.name}'"}
+
+@router.delete("/{workspace_id}/documents/{document_id}")
+def unlink_document_from_workspace(
+    workspace_id: str, 
+    document_id: str, 
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a document from a Workspace (but keep it in the Knowledge Base).
+    """
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Check if it's actually linked
+    if document not in workspace.documents:
+        raise HTTPException(status_code=400, detail="Document is not attached to this workspace")
+
+    # Remove the link
+    workspace.documents.remove(document)
+    
+    db.commit()
+    
+    return {"message": f"Successfully removed '{document.filename}' from '{workspace.name}'"}

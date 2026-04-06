@@ -8,7 +8,6 @@ class DocumentResponse(BaseModel):
     API sends this back to the user after upload or when listing documents.
     """
     id: str
-    workspace_id: str
     filename: str
     file_type: Optional[str] = None
     file_size: Optional[int] = None
