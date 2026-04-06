@@ -17,3 +17,5 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+
+backend/uploaded_docs/
