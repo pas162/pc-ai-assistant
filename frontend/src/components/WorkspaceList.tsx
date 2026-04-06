@@ -7,7 +7,18 @@ import {
 } from "../api";
 import type { Workspace } from "../api";
 
-export default function WorkspaceList() {
+// ← 1. Define what props this component accepts
+// Think of this like a Java method signature
+interface WorkspaceListProps {
+  selectedWorkspaceId: string | null;
+  onSelectWorkspace: (workspace: Workspace) => void;
+}
+
+// ← 2. Accept the props as a parameter
+export default function WorkspaceList({
+  selectedWorkspaceId,
+  onSelectWorkspace,
+}: WorkspaceListProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,8 +164,13 @@ export default function WorkspaceList() {
         {workspaces.map((ws: Workspace) => (
           <div
             key={ws.id}
-            className="group flex items-center justify-between px-4 py-2
-                       hover:bg-gray-700 rounded mx-2 cursor-pointer"
+            onClick={() => onSelectWorkspace(ws)}
+            className={`group flex items-center justify-between px-4 py-2 rounded mx-2 cursor-pointer
+              ${
+                selectedWorkspaceId === ws.id
+                  ? "bg-blue-600"
+                  : "hover:bg-gray-700"
+              }`}
           >
             {/* Name + description */}
             <div className="flex-1 min-w-0">
