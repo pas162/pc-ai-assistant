@@ -12,3 +12,6 @@ alembic==1.13.3
 
 # Vector database
 chromadb==1.5.5
+
+# HTTP client (for calling LLM API)
+httpx==0.27.0

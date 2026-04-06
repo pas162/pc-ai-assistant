@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     # LLM API
     llm_api_base_url: str = "http://10.210.106.4:8080"
+    llm_api_token: str = ""
 
     # PostgreSQL
     postgres_user: str = "admin"
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     backend_port: int = 8000
 
     class Config:
-        env_file = ".env"        # tells Pydantic where to find the .env file
+        env_file = "../.env"        # tells Pydantic where to find the .env file
         extra = "ignore"         # ignore unknown variables in .env
 
 

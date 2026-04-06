@@ -23,7 +23,7 @@ An internal AI platform with:
 - [x] Step 1: Project folder structure + Git
 - [x] Step 2: Backend skeleton (FastAPI)
 - [x] Step 3: Database setup (PostgreSQL + models)
-- [ ] Step 4: Vector database setup (ChromaDB)
+- [x] Step 4: Vector database setup (ChromaDB)
 - [ ] Step 5: LLM API connection
 - [ ] Step 6: Basic frontend scaffold (React)
 
@@ -33,7 +33,6 @@ An internal AI platform with:
 - [ ] Step 8: Workspace UI
 - [ ] Step 9: Document upload API
 - [ ] Step 10: Document upload UI
-
 
 ### Sprint 3 — RAG Pipeline (Steps 11-15)
 

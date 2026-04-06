@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.core.config import get_settings
+from app.core.llm_client import test_llm_connection
 from app.routes import workspaces
 
 # Get our settings
@@ -24,3 +25,11 @@ def health_check():
         "status": "ok",
         "message": "PC-AI-Assistant is running"
     }
+
+@app.get("/test-llm")
+def test_llm():
+    """
+    Test endpoint to verify LLM API connection.
+    Visit http://127.0.0.1:8000/test-llm to test.
+    """
+    return test_llm_connection()
