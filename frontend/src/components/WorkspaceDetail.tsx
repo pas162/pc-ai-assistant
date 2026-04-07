@@ -4,7 +4,8 @@ import {
   linkDocumentToWorkspace,
   unlinkDocumentFromWorkspace,
 } from "../api";
-import type { Workspace, Document } from "../api"; // ← removed getWorkspaces
+import type { Workspace, Document } from "../api";
+import ChatPanel from "./ChatPanel";
 
 interface WorkspaceDetailProps {
   workspace: Workspace;
@@ -140,6 +141,9 @@ export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
           </table>
         )}
       </div>
+
+      {/* Chat Panel — NEW */}
+      <ChatPanel workspaceId={workspace.id} />
 
       {/* ── ATTACH MODAL ──────────────────────────────── */}
       {showAttachModal && (

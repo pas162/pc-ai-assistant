@@ -45,10 +45,9 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] ChromaDB vector storage
 - [x] RAG pipeline integration + retrieval logic
 - [x] Stateless chat endpoint (POST /chat)
+- [x] Chat API with history (sessions, messages, RAG) — Step 16
 
 ## In Progress
-
-- [ ] Chat API with history — sessions, messages, RAG (Step 16)
 
 ## Pending Features
 

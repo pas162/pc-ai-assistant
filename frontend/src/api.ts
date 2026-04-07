@@ -104,3 +104,70 @@ export const unlinkDocumentFromWorkspace = async (
 ): Promise<void> => {
   await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
 };
+
+// ─── Chat API calls ────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface ChatSession {
+  id: string;
+  workspace_id: string;
+  title: string;
+  created_at: string;
+}
+
+export interface ChatSessionDetail extends ChatSession {
+  messages: ChatMessage[];  // full history included
+}
+
+export interface SendMessageResponse {
+  user_message: ChatMessage;
+  assistant_message: ChatMessage;
+  chunks_used: number;
+}
+
+// POST /chat/sessions — create a new session
+export const createChatSession = async (
+  workspaceId: string,
+  title: string = "New Chat"
+): Promise<ChatSession> => {
+  const response = await api.post("/chat/sessions", {
+    workspace_id: workspaceId,
+    title,
+  });
+  return response.data;
+};
+
+// GET /chat/sessions?workspace_id=xxx — list sessions for a workspace
+export const getChatSessions = async (
+  workspaceId: string
+): Promise<ChatSession[]> => {
+  const response = await api.get("/chat/sessions", {
+    params: { workspace_id: workspaceId },
+  });
+  return response.data;
+};
+
+// GET /chat/sessions/:id — get session with full message history
+export const getChatSession = async (
+  sessionId: string
+): Promise<ChatSessionDetail> => {
+  const response = await api.get(`/chat/sessions/${sessionId}`);
+  return response.data;
+};
+
+// POST /chat/sessions/:id/message — send a message
+export const sendMessage = async (
+  sessionId: string,
+  question: string
+): Promise<SendMessageResponse> => {
+  const response = await api.post(`/chat/sessions/${sessionId}/message`, {
+    question,
+  });
+  return response.data;
+};
