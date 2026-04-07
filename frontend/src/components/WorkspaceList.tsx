@@ -6,36 +6,28 @@ import {
   deleteWorkspace,
 } from "../api";
 import type { Workspace } from "../api";
+import type { ToastType } from "../hooks/useToast";
 
-// ← 1. Define what props this component accepts
-// Think of this like a Java method signature
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
   onSelectWorkspace: (workspace: Workspace) => void;
-  showToast: (message: string, type: "success" | "error" | "info") => void; // ← add
+  showToast: (message: string, type: ToastType) => void;
 }
 
-// ← 2. Accept the props as a parameter
 export default function WorkspaceList({
   selectedWorkspaceId,
   onSelectWorkspace,
-  showToast, // ← add
+  showToast,
 }: WorkspaceListProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Create modal state
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [creating, setCreating] = useState(false);
-
-  // "..." menu state — stores which workspace's menu is currently open
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(
     null,
@@ -43,8 +35,6 @@ export default function WorkspaceList({
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // ── Fetch ────────────────────────────────────────────
 
   const fetchWorkspaces = async () => {
     try {
@@ -62,7 +52,6 @@ export default function WorkspaceList({
     fetchWorkspaces();
   }, []);
 
-  // Close "..." menu when user clicks anywhere outside it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -72,8 +61,6 @@ export default function WorkspaceList({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // ── Create ───────────────────────────────────────────
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -87,22 +74,20 @@ export default function WorkspaceList({
       setNewDescription("");
       setShowModal(false);
       await fetchWorkspaces();
-      showToast("Workspace created!", "success"); // ← replace alert
+      showToast("Workspace created!", "success");
     } catch {
-      showToast("Failed to create workspace", "error"); // ← replace alert
+      showToast("Failed to create workspace", "error");
     } finally {
       setCreating(false);
     }
   };
 
-  // ── Edit ─────────────────────────────────────────────
-
   const openEditModal = (ws: Workspace) => {
     setEditingWorkspace(ws);
-    setEditName(ws.name); // pre-fill current name
-    setEditDescription(ws.description ?? ""); // pre-fill current description
+    setEditName(ws.name);
+    setEditDescription(ws.description ?? "");
     setShowEditModal(true);
-    setOpenMenuId(null); // close the "..." menu
+    setOpenMenuId(null);
   };
 
   const handleUpdate = async () => {
@@ -116,15 +101,13 @@ export default function WorkspaceList({
       setShowEditModal(false);
       setEditingWorkspace(null);
       await fetchWorkspaces();
-      showToast("Workspace updated!", "success"); // ← replace alert
+      showToast("Workspace updated!", "success");
     } catch {
-      showToast("Failed to update workspace", "error"); // ← replace alert
+      showToast("Failed to update workspace", "error");
     } finally {
       setSaving(false);
     }
   };
-
-  // ── Delete ───────────────────────────────────────────
 
   const handleDelete = async (ws: Workspace) => {
     if (!window.confirm(`Delete "${ws.name}"? This cannot be undone.`)) return;
@@ -132,26 +115,23 @@ export default function WorkspaceList({
       await deleteWorkspace(ws.id);
       setOpenMenuId(null);
       await fetchWorkspaces();
-      showToast("Workspace deleted", "info"); // ← replace alert
+      showToast("Workspace deleted", "info");
     } catch {
-      showToast("Failed to delete workspace", "error"); // ← replace alert
+      showToast("Failed to delete workspace", "error");
     }
   };
 
-  // ── Render ───────────────────────────────────────────
-
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-        <span className="text-sm font-semibold text-gray-300 uppercase tracking-wide">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           Workspaces
         </span>
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700
-             text-white text-xs font-medium px-2 py-1 rounded transition-colors"
-          title="New Workspace"
+                     text-white text-xs font-medium px-2 py-1 rounded transition-colors"
         >
           + New
         </button>
@@ -160,45 +140,37 @@ export default function WorkspaceList({
       {/* Workspace list */}
       <div className="flex-1 overflow-y-auto py-2">
         {loading && (
-          <p className="text-gray-400 text-sm px-4 py-2">Loading...</p>
+          <p className="text-gray-500 text-xs px-4 py-2">Loading...</p>
         )}
-        {error && <p className="text-red-400 text-sm px-4 py-2">{error}</p>}
+        {error && <p className="text-red-400 text-xs px-4 py-2">{error}</p>}
         {!loading && !error && workspaces.length === 0 && (
-          <p className="text-gray-500 text-sm px-4 py-2">No workspaces yet.</p>
+          <p className="text-gray-600 text-xs px-4 py-2">No workspaces yet.</p>
         )}
 
-        {workspaces.map((ws: Workspace) => (
+        {workspaces.map((ws) => (
           <div
             key={ws.id}
             onClick={() => onSelectWorkspace(ws)}
-            className={`group flex items-center justify-between px-3 py-2 rounded mx-2 cursor-pointer transition-colors
-              ${
-                selectedWorkspaceId === ws.id
-                  ? "bg-blue-600"
-                  : "hover:bg-gray-700"
-              }`}
+            className={`group flex items-center justify-between px-3 py-2
+              rounded mx-2 cursor-pointer transition-colors
+              ${selectedWorkspaceId === ws.id ? "bg-blue-600" : "hover:bg-gray-800"}`}
           >
             {/* Icon + Name + doc count */}
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              {/* Folder icon — changes when active */}
               <span className="text-sm shrink-0">
                 {selectedWorkspaceId === ws.id ? "📂" : "📁"}
               </span>
-
-              {/* Name + doc count stacked */}
               <div className="flex-1 min-w-0">
                 <p
                   className={`text-sm font-medium truncate
-                  ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-200"}`}
+                  ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-300"}`}
                 >
                   {ws.name}
                 </p>
-
-                {/* Doc count — only show if documents exist */}
                 {ws.documents && ws.documents.length > 0 && (
                   <p
                     className={`text-xs truncate
-                    ${selectedWorkspaceId === ws.id ? "text-blue-200" : "text-gray-500"}`}
+                    ${selectedWorkspaceId === ws.id ? "text-blue-200" : "text-gray-600"}`}
                   >
                     {ws.documents.length}{" "}
                     {ws.documents.length === 1 ? "doc" : "docs"}
@@ -207,7 +179,7 @@ export default function WorkspaceList({
               </div>
             </div>
 
-            {/* "..." button — unchanged, keep your existing code */}
+            {/* ⋮ menu */}
             <div
               className="relative"
               ref={openMenuId === ws.id ? menuRef : null}
@@ -219,26 +191,27 @@ export default function WorkspaceList({
                 }}
                 className="opacity-0 group-hover:opacity-100 text-gray-400
                            hover:text-white px-1 rounded transition-opacity"
-                title="Options"
               >
                 ⋮
               </button>
 
-              {/* Dropdown menu — keep your existing code unchanged */}
+              {/* Dropdown — dark */}
               {openMenuId === ws.id && (
                 <div
-                  className="absolute right-0 top-6 z-10 bg-white rounded
-                                shadow-lg border border-gray-200 py-1 w-36"
+                  className="absolute right-0 top-6 z-10 bg-gray-800 rounded
+                                shadow-lg border border-gray-700 py-1 w-36"
                 >
                   <button
                     onClick={() => openEditModal(ws)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-300
+                               hover:bg-gray-700 transition-colors"
                   >
                     ✏️ Edit
                   </button>
                   <button
                     onClick={() => handleDelete(ws)}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="w-full text-left px-4 py-2 text-sm text-red-400
+                               hover:bg-gray-700 transition-colors"
                   >
                     🗑️ Delete
                   </button>
@@ -251,38 +224,38 @@ export default function WorkspaceList({
 
       {/* ── CREATE MODAL ──────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h2 className="text-gray-900 text-lg font-semibold mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-gray-700">
+            <h2 className="text-gray-100 text-lg font-semibold mb-4">
               New Workspace
             </h2>
 
-            <label className="block text-gray-700 text-sm font-medium mb-1">
-              Name <span className="text-red-500">*</span>
+            <label className="block text-gray-400 text-sm font-medium mb-1">
+              Name <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. HR Documents"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900
-                         placeholder-gray-400 focus:outline-none focus:ring-2
-                         focus:ring-blue-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                         text-gray-200 placeholder-gray-500 focus:outline-none
+                         focus:ring-2 focus:ring-blue-500 mb-4"
               autoFocus
             />
 
-            <label className="block text-gray-700 text-sm font-medium mb-1">
+            <label className="block text-gray-400 text-sm font-medium mb-1">
               Description{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-gray-600 font-normal">(optional)</span>
             </label>
             <input
               type="text"
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="What is this workspace for?"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900
-                         placeholder-gray-400 focus:outline-none focus:ring-2
-                         focus:ring-blue-500 mb-6"
+              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                         text-gray-200 placeholder-gray-500 focus:outline-none
+                         focus:ring-2 focus:ring-blue-500 mb-6"
             />
 
             <div className="flex justify-end gap-3">
@@ -292,8 +265,8 @@ export default function WorkspaceList({
                   setNewName("");
                   setNewDescription("");
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900
-                           border border-gray-300 rounded hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-400 border border-gray-600
+                           rounded hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
@@ -301,7 +274,8 @@ export default function WorkspaceList({
                 onClick={handleCreate}
                 disabled={!newName.trim() || creating}
                 className="px-4 py-2 text-sm text-white bg-blue-600 rounded
-                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-colors"
               >
                 {creating ? "Creating..." : "Create"}
               </button>
@@ -312,37 +286,37 @@ export default function WorkspaceList({
 
       {/* ── EDIT MODAL ────────────────────────────────── */}
       {showEditModal && editingWorkspace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h2 className="text-gray-900 text-lg font-semibold mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-gray-700">
+            <h2 className="text-gray-100 text-lg font-semibold mb-4">
               Edit Workspace
             </h2>
 
-            <label className="block text-gray-700 text-sm font-medium mb-1">
-              Name <span className="text-red-500">*</span>
+            <label className="block text-gray-400 text-sm font-medium mb-1">
+              Name <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900
-                         placeholder-gray-400 focus:outline-none focus:ring-2
-                         focus:ring-blue-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                         text-gray-200 placeholder-gray-500 focus:outline-none
+                         focus:ring-2 focus:ring-blue-500 mb-4"
               autoFocus
             />
 
-            <label className="block text-gray-700 text-sm font-medium mb-1">
+            <label className="block text-gray-400 text-sm font-medium mb-1">
               Description{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-gray-600 font-normal">(optional)</span>
             </label>
             <input
               type="text"
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               placeholder="What is this workspace for?"
-              className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900
-                         placeholder-gray-400 focus:outline-none focus:ring-2
-                         focus:ring-blue-500 mb-6"
+              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                         text-gray-200 placeholder-gray-500 focus:outline-none
+                         focus:ring-2 focus:ring-blue-500 mb-6"
             />
 
             <div className="flex justify-end gap-3">
@@ -351,8 +325,8 @@ export default function WorkspaceList({
                   setShowEditModal(false);
                   setEditingWorkspace(null);
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900
-                           border border-gray-300 rounded hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-400 border border-gray-600
+                           rounded hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>
@@ -360,7 +334,8 @@ export default function WorkspaceList({
                 onClick={handleUpdate}
                 disabled={!editName.trim() || saving}
                 className="px-4 py-2 text-sm text-white bg-blue-600 rounded
-                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-colors"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>

@@ -2,65 +2,76 @@ import { useState } from "react";
 import WorkspaceList from "./components/WorkspaceList";
 import KnowledgeBase from "./components/KnowledgeBase";
 import WorkspaceDetail from "./components/WorkspaceDetail";
-import { ToastContainer } from "./components/Toast"; // component
-import { useToast } from "./hooks/useToast"; // hook
+import { ToastContainer } from "./components/Toast";
+import { useToast } from "./hooks/useToast";
 import type { Workspace } from "./api";
 
 function App() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
-    null,
-  );
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const { toasts, showToast, removeToast } = useToast();
+  const [sidebarOpen, setSidebarOpen] = useState(true); // ← new
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-screen bg-gray-950">
+
       {/* ── TOP NAVBAR ──────────────────────────────────────────── */}
       <div className="h-12 bg-gray-900 border-b border-gray-700 flex items-center px-4 gap-3 shrink-0">
-        {/* App title - left side */}
-        <span className="text-white font-bold text-sm">🤖 PC AI Assistant</span>
+        {/* Sidebar toggle button */}
+        <button
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-gray-700"
+          title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+        >
+          {sidebarOpen ? "◀" : "▶"}
+        </button>
 
-        {/* Separator + current location - shows breadcrumb */}
+        <span className="text-white font-bold text-sm">🤖 PC AI Assistant</span>
         <span className="text-gray-600">|</span>
         <span className="text-gray-300 text-sm">
           {selectedWorkspace ? (
             <>
               <span className="text-gray-500">Workspace</span>
               <span className="text-gray-500"> › </span>
-              <span className="text-white font-medium">
-                {selectedWorkspace.name}
-              </span>
+              <span className="text-white font-medium">{selectedWorkspace.name}</span>
             </>
           ) : (
             <span className="text-white font-medium">📚 Knowledge Base</span>
           )}
         </span>
       </div>
-      {/* ── BODY (sidebar + content) ─────────────────────────────── */}
+
+      {/* ── BODY ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT SIDEBAR */}
-        <div className="w-64 bg-gray-900 text-white flex flex-col">
+
+        {/* LEFT SIDEBAR — collapses when sidebarOpen is false */}
+        <div
+          className={`bg-gray-900 border-r border-gray-700 text-white 
+                      flex flex-col transition-all duration-300 overflow-hidden
+                      ${sidebarOpen ? "w-64" : "w-0"}`}
+        >
           <WorkspaceList
             selectedWorkspaceId={selectedWorkspace?.id ?? null}
             onSelectWorkspace={setSelectedWorkspace}
             showToast={showToast}
           />
-
           <div className="p-3 border-t border-gray-700">
             <button
               onClick={() => setSelectedWorkspace(null)}
-              className={`w-full text-left px-3 py-2 rounded text-sm font-medium transition-colors
+              className={`w-full text-left px-3 py-2 rounded text-sm 
+                font-medium transition-colors
                 ${
                   selectedWorkspace === null
                     ? "bg-blue-600 text-white"
-                    : "text-gray-400 hover:text-white hover:bg-gray-700"
+                    : "text-gray-400 hover:text-white hover:bg-gray-800"
                 }`}
             >
               📚 Knowledge Base
             </button>
           </div>
         </div>
+
         {/* RIGHT CONTENT AREA */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-gray-950">
           <div className="flex-1 overflow-y-auto">
             {selectedWorkspace === null ? (
               <KnowledgeBase showToast={showToast} />
@@ -72,9 +83,9 @@ function App() {
             )}
           </div>
         </div>
+
       </div>
 
-      {/* Toast container — renders toasts on top of everything */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );

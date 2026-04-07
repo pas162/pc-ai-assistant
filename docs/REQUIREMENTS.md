@@ -50,8 +50,10 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Delete chat session (backend + frontend)
 - [x] Status badge colors by document status
 - [x] Top navbar with breadcrumb navigation
-- [x] Sidebar polish (icons, doc count, New button)
-- [x] Chat UI polish (timestamps, delete session, send spinner)
+- [x] Workspace detail tabs (💬 Chat | 📁 Documents)
+- [x] Full dark mode UI (night mode only)
+- [x] Collapsible sidebar
+- [x] Collapsible chat sessions list
 - [x] Toast notifications replacing all alert() popups
 
 ## In Progress

@@ -69,3 +69,8 @@ An internal AI platform with:
 - [x] Sidebar polish (folder icons, doc count, better buttons)
 - [x] Chat UI polish (timestamps, delete session, spinner send button)
 - [x] Toast notifications (replaced all alert() popups)
+- [x] Workspace detail tabs (Chat tab + Documents tab)
+- [x] Documents tab includes attached docs management
+- [x] Full dark mode (night mode only)
+- [x] Collapsible sidebar (toggle with ◀▶ button in navbar)
+- [x] Collapsible chat sessions list (toggle with ◀▶ button)
