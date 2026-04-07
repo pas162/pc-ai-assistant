@@ -3,7 +3,7 @@ import {
   getChatSessions,
   createChatSession,
   getChatSession,
-  sendMessage,
+  streamMessage,
 } from "../api";
 import type { ChatSession, ChatSessionDetail, ChatMessage } from "../api";
 
@@ -20,27 +20,49 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false); // sending a message
   const [loadingSessions, setLoadingSessions] = useState(true); // initial load
+  const [streamingText, setStreamingText] = useState("");
 
   // ref to the bottom of the message list — used to auto-scroll
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamingTextRef = useRef("");
+
+  // Update ref when streamingText changes
+  useEffect(() => {
+    streamingTextRef.current = streamingText;
+  }, [streamingText]);
 
   // ── Load sessions when workspace changes ───────────────────────────────────
   useEffect(() => {
-    setLoadingSessions(true);
-    setActiveSession(null); // clear active session when switching workspaces
-    setSessions([]);
+    let cancelled = false; // prevents state update if workspace changes again
 
-    getChatSessions(workspaceId)
-      .then(setSessions)
-      .catch(() => {})
-      .finally(() => setLoadingSessions(false));
-  }, [workspaceId]); // re-runs every time workspaceId changes
+    const loadSessions = async () => {
+      setLoadingSessions(true);
+      setActiveSession(null);
+      setSessions([]);
+
+      try {
+        const data = await getChatSessions(workspaceId);
+        if (!cancelled) setSessions(data);
+      } catch {
+        // silently ignore
+      } finally {
+        if (!cancelled) setLoadingSessions(false);
+      }
+    };
+
+    loadSessions();
+
+    // Cleanup — if workspaceId changes before fetch completes,
+    // cancel the previous fetch's state updates
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
 
   // ── Auto-scroll to bottom when new messages arrive ─────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeSession?.messages]); // re-runs when messages array changes
-
+  }, [activeSession?.messages, streamingText]); // re-runs when messages array or streaming text changes
   // ── Create a new session ───────────────────────────────────────────────────
   const handleNewSession = async () => {
     try {
@@ -65,19 +87,18 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
     }
   };
 
-  // ── Send a message ─────────────────────────────────────────────────────────
+  // ── Send a message WITH streaming ─────────────────────────────────────────
   const handleSend = async () => {
-    // Guard: must have a session, a question, and not already loading
     if (!activeSession || !question.trim() || loading) return;
 
     const questionText = question.trim();
-    setQuestion(""); // clear input immediately (feels responsive)
+    setQuestion("");
     setLoading(true);
+    setStreamingText(""); // clear any previous streaming text
 
-    // Optimistically add user message to UI before API responds
-    // This makes the UI feel instant — user sees their message right away
+    // Optimistically add user message to UI
     const tempUserMessage: ChatMessage = {
-      id: "temp-" + Date.now(), // temporary ID until real one arrives
+      id: "temp-" + Date.now(),
       role: "user",
       content: questionText,
       created_at: new Date().toISOString(),
@@ -87,26 +108,62 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
     );
 
     try {
-      const response = await sendMessage(activeSession.id, questionText);
+      await streamMessage(
+        activeSession.id,
+        questionText,
 
-      // Replace temp message + add real assistant message
-      setActiveSession((prev) => {
-        if (!prev) return prev;
-        // Remove the temp message, add both real messages from backend
-        const withoutTemp = prev.messages.filter(
-          (m) => !m.id.startsWith("temp-"),
-        );
-        return {
-          ...prev,
-          messages: [
-            ...withoutTemp,
-            response.user_message,
-            response.assistant_message,
-          ],
-        };
-      });
+        // onChunk — called for every text piece received
+        // Appends to streamingText which renders as a live bubble
+        (chunk) => {
+          setStreamingText((prev) => prev + chunk);
+        },
+
+        // onDone — called when streaming completes
+        // Replaces temp messages with real saved messages from DB
+        (data) => {
+          setActiveSession((prev) => {
+            if (!prev) return prev;
+            const withoutTemp = prev.messages.filter(
+              (m) => !m.id.startsWith("temp-"),
+            );
+            return {
+              ...prev,
+              messages: [
+                ...withoutTemp,
+                {
+                  id: data.user_message_id,
+                  role: "user" as const,
+                  content: questionText,
+                  created_at: new Date().toISOString(),
+                },
+                {
+                  id: data.assistant_message_id,
+                  role: "assistant" as const,
+                  content: streamingTextRef.current, // use ref for latest value
+                  created_at: new Date().toISOString(),
+                },
+              ],
+            };
+          });
+          setStreamingText(""); // clear streaming bubble
+          setLoading(false);
+        },
+
+        // onError — called if streaming fails
+        (error) => {
+          setActiveSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              messages: prev.messages.filter((m) => !m.id.startsWith("temp-")),
+            };
+          });
+          setStreamingText("");
+          setLoading(false);
+          alert(`Streaming failed: ${error}`);
+        },
+      );
     } catch {
-      // Remove temp message if request failed
       setActiveSession((prev) => {
         if (!prev) return prev;
         return {
@@ -114,9 +171,9 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
           messages: prev.messages.filter((m) => !m.id.startsWith("temp-")),
         };
       });
-      alert("Failed to send message. Please try again.");
-    } finally {
+      setStreamingText("");
       setLoading(false);
+      alert("Failed to send message. Please try again.");
     }
   };
 
@@ -127,7 +184,6 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
       handleSend();
     }
   };
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="mt-8">
@@ -192,9 +248,20 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
                     <MessageBubble key={msg.id} message={msg} />
                   ))
                 )}
-
+                {/* Streaming message bubble */}
+                {streamingText && (
+                  <MessageBubble
+                    message={{
+                      id: "streaming",
+                      role: "assistant",
+                      content: streamingText,
+                      created_at: new Date().toISOString(),
+                    }}
+                  />
+                )}
                 {/* Loading indicator while waiting for AI response */}
-                {loading && (
+
+                {loading && !streamingText && (
                   <div className="flex gap-2 items-center text-gray-400 text-sm">
                     <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs">
                       🤖
@@ -202,8 +269,8 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
                     <span className="animate-pulse">Thinking...</span>
                   </div>
                 )}
-
                 {/* Invisible div at bottom — scroll target */}
+
                 <div ref={messagesEndRef} />
               </div>
 

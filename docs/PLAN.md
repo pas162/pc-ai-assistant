@@ -44,9 +44,8 @@ An internal AI platform with:
 
 ### Sprint 4 — Chat Feature (Steps 16-18)
 
-
 - [x] Step 16: Chat API with history (sessions + messages + RAG) ✅
-- [ ] Step 17: Chat UI
+- [x] Step 17: Chat UI ✅
 - [ ] Step 18: Streaming responses
 
 ### Sprint 5 — Code Generation (Steps 19-22)

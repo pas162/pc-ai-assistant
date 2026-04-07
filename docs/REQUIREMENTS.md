@@ -39,6 +39,8 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] File storage on disk (backend/uploaded_docs/)
 - [x] Knowledge Base UI with file table
 - [x] Workspace Detail UI with attach/detach
+- [x] Chat API with history (sessions, messages, RAG) — Step 16
+- [x] Chat UI (sessions list, message bubbles, history) — Step 17
 - [x] Text extraction (PDF, DOCX, TXT)
 - [x] Text chunking (sliding window, smart boundaries)
 - [x] Local embeddings (all-MiniLM-L6-v2, 384 dimensions)

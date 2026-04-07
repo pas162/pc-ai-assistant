@@ -171,3 +171,87 @@ export const sendMessage = async (
   });
   return response.data;
 };
+
+// POST /chat/sessions/:id/stream — stream a message response
+// Uses fetch (not axios) because axios doesn't support SSE streaming
+export const streamMessage = (
+  sessionId: string,
+  question: string,
+  onChunk: (text: string) => void,      // called for every text chunk received
+  onDone: (data: {                       // called when streaming completes
+    user_message_id: string;
+    assistant_message_id: string;
+    chunks_used: number;
+  }) => void,
+  onError: (error: string) => void       // called if something goes wrong
+): Promise<void> => {
+  return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    // response.body is a ReadableStream — we read it chunk by chunk
+    const reader = response.body!.getReader();
+
+    // TextDecoder converts raw bytes → string
+    const decoder = new TextDecoder();
+
+    // Buffer holds incomplete lines between chunks
+    // (a single chunk from fetch may contain partial SSE lines)
+    let buffer = "";
+
+    // Recursive function that keeps reading until stream ends
+    const read = (): Promise<void> => {
+      return reader.read().then(({ done, value }) => {
+
+        // done = true means the stream has ended
+        if (done) return;
+
+        // Decode the bytes to string and add to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Split buffer by double newline (SSE event separator)
+        const events = buffer.split("\n\n");
+
+        // Last element may be incomplete — keep it in buffer
+        // All others are complete events — process them
+        buffer = events.pop() ?? "";
+
+        for (const event of events) {
+          // Each event looks like: "data: {...json...}"
+          const line = event.trim();
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6);  // remove "data: "
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+
+            if (parsed.type === "chunk") {
+              onChunk(parsed.content);        // forward text to UI
+            } else if (parsed.type === "done") {
+              onDone({                         // notify UI streaming is complete
+                user_message_id: parsed.user_message_id,
+                assistant_message_id: parsed.assistant_message_id,
+                chunks_used: parsed.chunks_used,
+              });
+            } else if (parsed.type === "error") {
+              onError(parsed.content);         // notify UI of error
+            }
+          } catch {
+            // Malformed JSON — skip
+          }
+        }
+
+        // Read the next chunk (recursive call)
+        return read();
+      });
+    };
+
+    return read();
+  });
+};
