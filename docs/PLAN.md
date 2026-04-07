@@ -29,36 +29,35 @@ An internal AI platform with:
 
 ### Sprint 2 — Workspace & Document Management (Steps 7-10) ✅ COMPLETE
 
-- [x] Step 7: Workspace CRUD API + UI (Create, Read, Update, Delete)
+- [x] Step 7: Workspace CRUD API + UI
 - [x] Step 8: Document upload API (Central Knowledge Base)
 - [x] Step 9: Knowledge Base UI (upload, list, delete)
 - [x] Step 10: Workspace Detail UI (attach/detach documents)
 
-### Sprint 3 — RAG Pipeline (Steps 11-15) 🔄 IN PROGRESS
+### Sprint 3 — RAG Pipeline (Steps 11-15) ✅ COMPLETE
 
 - [x] Step 11: Text extraction (PDF, DOCX, TXT)
 - [x] Step 12: Text chunking (sliding window algorithm)
 - [x] Step 13: Local embeddings (sentence-transformers)
-- [x] Step 14: ChromaDB vector storage ← CURRENT
-- [ ] Step 15: RAG pipeline integration + retrieval logic
+- [x] Step 14: ChromaDB vector storage
+- [x] Step 15: RAG pipeline integration + retrieval logic
 
-### Sprint 4 — Chat Feature (Steps 16-19)
+### Sprint 4 — Chat Feature (Steps 16-18)
 
-- [ ] Step 16: Chat API
+- [ ] Step 16: Chat API with history (sessions + messages + RAG) ← IN PROGRESS
 - [ ] Step 17: Chat UI
-- [ ] Step 18: Chat history
-- [ ] Step 19: Streaming responses
+- [ ] Step 18: Streaming responses
 
-### Sprint 5 — Code Generation (Steps 20-23)
+### Sprint 5 — Code Generation (Steps 19-22)
 
-- [ ] Step 20: Code generation API
-- [ ] Step 21: Code generation UI
-- [ ] Step 22: Code execution sandbox
-- [ ] Step 23: Code history
+- [ ] Step 19: Code generation API
+- [ ] Step 20: Code generation UI
+- [ ] Step 21: Code execution sandbox
+- [ ] Step 22: Code history
 
-### Sprint 6 — Polish (Steps 24-27)
+### Sprint 6 — Polish (Steps 23-26)
 
-- [ ] Step 24: Settings UI (API token management)
-- [ ] Step 25: Error handling + logging
-- [ ] Step 26: Docker Compose (run everything together)
-- [ ] Step 27: Final testing + documentation
+- [ ] Step 23: Settings UI (API token management)
+- [ ] Step 24: Error handling + logging
+- [ ] Step 25: Docker Compose (run everything together)
+- [ ] Step 26: Final testing + documentation

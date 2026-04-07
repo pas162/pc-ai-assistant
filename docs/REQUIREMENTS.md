@@ -23,11 +23,13 @@ Workspaces, and chat with an AI about the attached documents.
 - A Workspace can have many Documents. A Document can be in many Workspaces
 - Many-to-Many relationship via `workspace_documents` junction table
 
-### 3. Chat Sessions (Planned)
+### 3. Chat Sessions
 
 - Users create chat sessions inside a Workspace
 - AI only searches documents attached to that specific Workspace
-- Full chat history saved to PostgreSQL
+- Full chat history saved to PostgreSQL (`chat_sessions`, `chat_messages`)
+- Each message has a role: "user" or "assistant"
+- History is sent to LLM on every message for conversation continuity
 
 ## Completed Features
 
@@ -40,22 +42,21 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Text extraction (PDF, DOCX, TXT)
 - [x] Text chunking (sliding window, smart boundaries)
 - [x] Local embeddings (all-MiniLM-L6-v2, 384 dimensions)
+- [x] ChromaDB vector storage
+- [x] RAG pipeline integration + retrieval logic
+- [x] Stateless chat endpoint (POST /chat)
 
 ## In Progress
 
-- [ ] ChromaDB vector storage (Step 14)
-- [ ] Retrieval logic (Step 15)
-- [ ] RAG pipeline integration (Step 15)
+- [ ] Chat API with history — sessions, messages, RAG (Step 16)
 
 ## Pending Features
 
-- [ ] Chat API (Step 16)
 - [ ] Chat UI (Step 17)
-- [ ] Chat history (Step 18)
-- [ ] Streaming responses (Step 19)
-- [ ] Code Generation (Steps 20-23)
-- [ ] Docker Compose (Step 26)
-- [ ] Final testing + documentation (Step 27)
+- [ ] Streaming responses (Step 18)
+- [ ] Code Generation (Steps 19-22)
+- [ ] Docker Compose (Step 25)
+- [ ] Final testing + documentation (Step 26)
 
 ## Important Technical Decisions
 
@@ -65,3 +66,4 @@ Workspaces, and chat with an AI about the attached documents.
 | Embedding model     | Local sentence-transformers | LLM API doesn't support embeddings  |
 | UUID vs Integer IDs | UUID                        | Better for distributed systems      |
 | File naming         | {uuid}\_{filename}          | Prevents name collisions            |
+| Chat persistence    | PostgreSQL                  | Full history replay to LLM          |

@@ -36,6 +36,7 @@
 ## Database Schema (PostgreSQL)
 
 We use a **Many-to-Many** relationship between Workspaces and Documents.
+Chat Sessions belong to a Workspace and contain many Messages.
 
 ### Tables
 
@@ -54,14 +55,27 @@ We use a **Many-to-Many** relationship between Workspaces and Documents.
    - `status` (String: "pending" → "processing" → "completed" / "failed")
    - `created_at` (DateTime)
 
-3. **`workspace_documents` (Junction / Link Table)**
+3. **`workspace_documents`** (Junction Table)
    - `workspace_id` (UUID, Foreign Key → workspaces.id, CASCADE DELETE)
    - `document_id` (UUID, Foreign Key → documents.id, CASCADE DELETE)
    - Primary Key is the combination of (`workspace_id`, `document_id`)
 
+4. **`chat_sessions`**
+   - `id` (UUID, Primary Key)
+   - `workspace_id` (UUID, Foreign Key → workspaces.id)
+   - `title` (String, default: "New Chat")
+   - `created_at` (DateTime)
+
+5. **`chat_messages`**
+   - `id` (UUID, Primary Key)
+   - `session_id` (UUID, Foreign Key → chat_sessions.id)
+   - `role` (String: "user" or "assistant")
+   - `content` (Text)
+   - `created_at` (DateTime)
+
 > **Java/Hibernate Equivalent:**
-> This is a `@ManyToMany` relationship using a `@JoinTable`.
-> CASCADE DELETE means removing a workspace or document automatically cleans up the link table.
+> `ChatSession` is a `@OneToMany` parent. `ChatMessage` is the `@ManyToOne` child.
+> Loading a session with `messages` is like an `@OneToMany(fetch = FetchType.EAGER)`.
 
 ## File Storage
 
@@ -86,4 +100,4 @@ We use a **Many-to-Many** relationship between Workspaces and Documents.
 - ChromaDB metadata stores `document_id` and `chunk_index`
 - During chat, ChromaDB filters by `document_ids` attached to the workspace
 
-## RAG Pipeline (Planned — Sprint 3)
+## RAG Pipeline

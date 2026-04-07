@@ -1,10 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
+from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.core.database import get_db
-from app.models.workspace import Workspace
 from app.core.llm_client import chat_with_llm
 from app.services.retriever import retrieve_relevant_chunks, build_context
+
+
+if TYPE_CHECKING:
+    from app.models.workspace import Workspace
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
