@@ -21,6 +21,8 @@
 | httpx             | 0.27.0  | HTTP client for LLM API calls |
 | python-multipart  | 0.0.24  | File upload support           |
 | pydantic-settings | 2.4.0   | .env config management        |
+| PyMuPDF           | -       | PDF processing                |
+| python-docx       | -       | DOCX processing               |
 
 ## Database Schema (PostgreSQL)
 
@@ -50,22 +52,6 @@ We use a **Many-to-Many** relationship between Workspaces and Documents.
 > **Java/Hibernate Equivalent:**
 > This is a `@ManyToMany` relationship using a `@JoinTable`.
 > CASCADE DELETE means removing a workspace or document automatically cleans up the link table.
-
-## API Endpoints
-| Method | URL | Purpose |
-|---|---|---|
-| GET | /health | Health check |
-| GET | /test-llm | Test LLM connection |
-| POST | /workspaces | Create workspace |
-| GET | /workspaces | List all workspaces |
-| GET | /workspaces/{id} | Get one workspace |
-| PUT | /workspaces/{id} | Update workspace |
-| DELETE | /workspaces/{id} | Delete workspace |
-| POST | /workspaces/{id}/documents/{doc_id} | Link document to workspace |
-| DELETE | /workspaces/{id}/documents/{doc_id} | Unlink document from workspace |
-| POST | /documents | Upload document to Knowledge Base |
-| GET | /documents | List all documents |
-| DELETE | /documents/{id} | Delete document from Knowledge Base |
 
 ## File Storage
 

@@ -5,6 +5,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
+# Add this import at the top
+from app.services.text_extractor import extract_text
+# Add this import at the top
+from app.services.text_chunker import chunk_document
+# Add this import at the top
+from app.services.embedder import get_embedding
 
 # Prefix is now just /documents (Central Knowledge Base)
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -80,3 +86,80 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": f"Document '{document.filename}' deleted successfully"}
+
+# Add this temporary test route at the bottom
+@router.get("/{document_id}/extract-test")
+def test_extraction(document_id: str, db: Session = Depends(get_db)):
+    """
+    Temporary endpoint to test text extraction.
+    We will remove this after Step 14.
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+
+    try:
+        text = extract_text(file_path, document.file_type)
+        # Return just the first 500 characters so we don't flood the screen
+        return {
+            "filename": document.filename,
+            "file_type": document.file_type,
+            "total_characters": len(text),
+            "preview": text[:500]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Add this test route
+@router.get("/{document_id}/chunk-test")
+def test_chunking(document_id: str, db: Session = Depends(get_db)):
+    """
+    Temporary endpoint to test text chunking.
+    We will remove this after Step 14.
+    """
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+
+    try:
+        # Step 1: Extract text
+        text = extract_text(file_path, document.file_type)
+
+        # Step 2: Chunk it
+        chunks = chunk_document(text, document_id)
+
+        # Return summary + first 3 chunks as preview
+        return {
+            "filename": document.filename,
+            "total_characters": len(text),
+            "total_chunks": len(chunks),
+            "chunk_size_setting": 500,
+            "overlap_setting": 50,
+            "preview_chunks": chunks[:3]  # Show first 3 chunks only
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Add this test route
+@router.get("/{document_id}/embed-test")
+def test_embedding(document_id: str, db: Session = Depends(get_db)):
+    """
+    Temporary endpoint to test embedding generation.
+    Tests with just ONE short text to verify the API works.
+    """
+    try:
+        test_text = "This is a test sentence for embedding."
+        vector = get_embedding(test_text)
+
+        return {
+            "status": "success",
+            "test_text": test_text,
+            "vector_dimensions": len(vector),
+            "vector_preview": vector[:5]  # Show first 5 numbers only
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
