@@ -10,7 +10,7 @@ def get_chroma_client():
     Connects to ChromaDB running in Docker.
     """
     client = chromadb.HttpClient(
-        host="localhost",
+        host="127.0.0.1",
         port=8001
     )
     return client

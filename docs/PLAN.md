@@ -39,7 +39,7 @@ An internal AI platform with:
 - [x] Step 11: Text extraction (PDF, DOCX, TXT)
 - [x] Step 12: Text chunking (sliding window algorithm)
 - [x] Step 13: Local embeddings (sentence-transformers)
-- [ ] Step 14: ChromaDB vector storage ← CURRENT
+- [x] Step 14: ChromaDB vector storage ← CURRENT
 - [ ] Step 15: RAG pipeline integration + retrieval logic
 
 ### Sprint 4 — Chat Feature (Steps 16-19)

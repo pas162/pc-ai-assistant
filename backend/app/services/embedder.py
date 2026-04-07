@@ -7,8 +7,8 @@ print("Embedding model loaded!")
 def get_embedding(text: str) -> List[float]:
     """
     Convert a single piece of text into a vector (list of numbers).
-    Uses multi-qa-mpnet-base-dot-v1 — optimized for Q&A retrieval.
-    Produces 768-dimensional vectors (vs 384 for MiniLM).
+    Uses all-MiniLM-L6-v2 — lightweight model for testing.
+    Produces 384-dimensional vectors.
     """
     vector = _model.encode(text)
     return vector.tolist()
