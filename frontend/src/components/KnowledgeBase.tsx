@@ -1,8 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { getDocuments, uploadDocument, deleteDocument } from "../api";
 import type { Document } from "../api";
+import type { ToastType } from "../hooks/useToast";
 
-export default function KnowledgeBase() {
+// ── Add props interface ────────────────────────────────────────────────────────
+interface KnowledgeBaseProps {
+  showToast: (message: string, type: ToastType) => void;
+}
+export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -35,8 +40,9 @@ export default function KnowledgeBase() {
       setUploading(true);
       await uploadDocument(file);
       await fetchDocs(); // Refresh the list after upload
+      showToast("File uploaded successfully!", "success");
     } catch {
-      alert("Failed to upload document");
+      showToast("Failed to upload document", "error");
     } finally {
       setUploading(false);
       // Reset the input so the same file can be uploaded again if needed
@@ -56,8 +62,9 @@ export default function KnowledgeBase() {
     try {
       await deleteDocument(doc.id);
       await fetchDocs(); // Refresh the list
+      showToast(`"${doc.filename}" deleted`, "info");
     } catch {
-      alert("Failed to delete document");
+      showToast("Failed to delete document", "error");
     }
   };
 

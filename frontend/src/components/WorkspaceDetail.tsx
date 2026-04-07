@@ -9,9 +9,29 @@ import ChatPanel from "./ChatPanel";
 
 interface WorkspaceDetailProps {
   workspace: Workspace;
+  showToast: (message: string, type: "success" | "error" | "info") => void;
 }
 
-export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
+// Add this helper function ABOVE the WorkspaceDetail component
+// Think of it like a Java static utility method
+function getStatusBadgeClass(status: string): string {
+  switch (status) {
+    case "completed":
+      return "bg-green-100 text-green-800";
+    case "processing":
+      return "bg-blue-100 text-blue-800";
+    case "failed":
+      return "bg-red-100 text-red-800";
+    case "pending":
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+}
+
+export default function WorkspaceDetail({
+  workspace,
+  showToast,
+}: WorkspaceDetailProps) {
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [attachedDocs, setAttachedDocs] = useState<Document[]>(
     workspace.documents,
@@ -41,8 +61,9 @@ export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
       await linkDocumentToWorkspace(workspace.id, doc.id);
       setAttachedDocs((prev) => [...prev, doc]);
       setShowAttachModal(false);
+      showToast(`"${doc.filename}" attached!`, "success");
     } catch {
-      alert("Failed to attach document");
+      showToast("Failed to attach document", "error");
     } finally {
       setAttaching(false);
     }
@@ -56,8 +77,9 @@ export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
     try {
       await unlinkDocumentFromWorkspace(workspace.id, doc.id);
       setAttachedDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      showToast(`"${doc.filename}" removed`, "info");
     } catch {
-      alert("Failed to detach document");
+      showToast("Failed to detach document", "error");
     }
   };
 
@@ -123,7 +145,9 @@ export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
                     {doc.file_type || "unknown"}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
+                    >
                       {doc.status}
                     </span>
                   </td>
@@ -142,8 +166,8 @@ export default function WorkspaceDetail({ workspace }: WorkspaceDetailProps) {
         )}
       </div>
 
-      {/* Chat Panel — NEW */}
-      <ChatPanel workspaceId={workspace.id} />
+      {/* Chat Panel */}
+      <ChatPanel workspaceId={workspace.id} showToast={showToast} />
 
       {/* ── ATTACH MODAL ──────────────────────────────── */}
       {showAttachModal && (

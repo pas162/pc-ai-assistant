@@ -41,21 +41,29 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Workspace Detail UI with attach/detach
 - [x] Chat API with history (sessions, messages, RAG) — Step 16
 - [x] Chat UI (sessions list, message bubbles, history) — Step 17
+- [x] Streaming responses via SSE — Step 18
 - [x] Text extraction (PDF, DOCX, TXT)
 - [x] Text chunking (sliding window, smart boundaries)
 - [x] Local embeddings (all-MiniLM-L6-v2, 384 dimensions)
 - [x] ChromaDB vector storage
 - [x] RAG pipeline integration + retrieval logic
-- [x] Stateless chat endpoint (POST /chat)
-- [x] Chat API with history (sessions, messages, RAG) — Step 16
+- [x] Delete chat session (backend + frontend)
+- [x] Status badge colors by document status
+- [x] Top navbar with breadcrumb navigation
+- [x] Sidebar polish (icons, doc count, New button)
+- [x] Chat UI polish (timestamps, delete session, send spinner)
+- [x] Toast notifications replacing all alert() popups
 
 ## In Progress
 
+- None
+
 ## Pending Features
 
-- [ ] Chat UI (Step 17)
-- [ ] Streaming responses (Step 18)
-- [ ] Code Generation (Steps 19-22)
+- [ ] Code Generation API (Step 19)
+- [ ] Code Generation UI (Step 20)
+- [ ] Code execution sandbox (Step 21)
+- [ ] Code history (Step 22)
 - [ ] Docker Compose (Step 25)
 - [ ] Final testing + documentation (Step 26)
 

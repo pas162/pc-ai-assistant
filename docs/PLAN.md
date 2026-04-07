@@ -42,11 +42,11 @@ An internal AI platform with:
 - [x] Step 14: ChromaDB vector storage
 - [x] Step 15: RAG pipeline integration + retrieval logic
 
-### Sprint 4 — Chat Feature (Steps 16-18)
+### Sprint 4 — Chat Feature (Steps 16-18) ✅ COMPLETE
 
 - [x] Step 16: Chat API with history (sessions + messages + RAG) ✅
 - [x] Step 17: Chat UI ✅
-- [ ] Step 18: Streaming responses
+- [x] Step 18: Streaming responses ✅
 
 ### Sprint 5 — Code Generation (Steps 19-22)
 
@@ -61,3 +61,11 @@ An internal AI platform with:
 - [ ] Step 24: Error handling + logging
 - [ ] Step 25: Docker Compose (run everything together)
 - [ ] Step 26: Final testing + documentation
+
+### Frontend Polish (Completed outside sprint plan)
+
+- [x] Status badge colors (green/yellow/red/blue based on document status)
+- [x] Top navbar with app title + current workspace breadcrumb
+- [x] Sidebar polish (folder icons, doc count, better buttons)
+- [x] Chat UI polish (timestamps, delete session, spinner send button)
+- [x] Toast notifications (replaced all alert() popups)

@@ -223,7 +223,43 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
     return session
 
 
-# ─── Endpoint 5: Stream a message ──────────────────────────────────────────────
+# ─── Endpoint 5: Delete a chat session ────────────────────────────────────────
+
+@router.delete("/{session_id}", status_code=204)
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    """
+    Delete a chat session and ALL its messages.
+
+    Steps:
+    1. Validate session exists
+    2. Delete all messages in the session first (child records)
+    3. Delete the session itself (parent record)
+    4. Return 204 No Content (standard REST for successful delete)
+    """
+    # Step 1 — Validate session exists
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    # Step 2 — Delete all child messages first
+    # This is like JPA orphanRemoval=true — children must go before parent
+    db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).delete()
+
+    # Step 3 — Delete the session itself
+    db.delete(session)
+    db.commit()
+
+    print(f"Deleted chat session {session_id} and all its messages")
+
+    # Step 4 — Return 204 No Content (no response body needed)
+    return None
+
+
+# ─── Endpoint 6: Stream a message ──────────────────────────────────────────────
 
 @router.post("/{session_id}/stream")
 def stream_message(

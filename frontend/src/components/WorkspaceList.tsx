@@ -12,12 +12,14 @@ import type { Workspace } from "../api";
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
   onSelectWorkspace: (workspace: Workspace) => void;
+  showToast: (message: string, type: "success" | "error" | "info") => void; // ← add
 }
 
 // ← 2. Accept the props as a parameter
 export default function WorkspaceList({
   selectedWorkspaceId,
   onSelectWorkspace,
+  showToast, // ← add
 }: WorkspaceListProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,8 +87,9 @@ export default function WorkspaceList({
       setNewDescription("");
       setShowModal(false);
       await fetchWorkspaces();
+      showToast("Workspace created!", "success"); // ← replace alert
     } catch {
-      alert("Failed to create workspace");
+      showToast("Failed to create workspace", "error"); // ← replace alert
     } finally {
       setCreating(false);
     }
@@ -113,8 +116,9 @@ export default function WorkspaceList({
       setShowEditModal(false);
       setEditingWorkspace(null);
       await fetchWorkspaces();
+      showToast("Workspace updated!", "success"); // ← replace alert
     } catch {
-      alert("Failed to update workspace");
+      showToast("Failed to update workspace", "error"); // ← replace alert
     } finally {
       setSaving(false);
     }
@@ -128,8 +132,9 @@ export default function WorkspaceList({
       await deleteWorkspace(ws.id);
       setOpenMenuId(null);
       await fetchWorkspaces();
+      showToast("Workspace deleted", "info"); // ← replace alert
     } catch {
-      alert("Failed to delete workspace");
+      showToast("Failed to delete workspace", "error"); // ← replace alert
     }
   };
 
@@ -144,10 +149,11 @@ export default function WorkspaceList({
         </span>
         <button
           onClick={() => setShowModal(true)}
-          className="text-gray-400 hover:text-white text-xl font-bold leading-none"
+          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700
+             text-white text-xs font-medium px-2 py-1 rounded transition-colors"
           title="New Workspace"
         >
-          +
+          + New
         </button>
       </div>
 
@@ -165,33 +171,50 @@ export default function WorkspaceList({
           <div
             key={ws.id}
             onClick={() => onSelectWorkspace(ws)}
-            className={`group flex items-center justify-between px-4 py-2 rounded mx-2 cursor-pointer
+            className={`group flex items-center justify-between px-3 py-2 rounded mx-2 cursor-pointer transition-colors
               ${
                 selectedWorkspaceId === ws.id
                   ? "bg-blue-600"
                   : "hover:bg-gray-700"
               }`}
           >
-            {/* Name + description */}
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">
-                {ws.name}
-              </p>
-              {ws.description && (
-                <p className="text-gray-400 text-xs mt-0.5 truncate">
-                  {ws.description}
+            {/* Icon + Name + doc count */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {/* Folder icon — changes when active */}
+              <span className="text-sm shrink-0">
+                {selectedWorkspaceId === ws.id ? "📂" : "📁"}
+              </span>
+
+              {/* Name + doc count stacked */}
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-sm font-medium truncate
+                  ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-200"}`}
+                >
+                  {ws.name}
                 </p>
-              )}
+
+                {/* Doc count — only show if documents exist */}
+                {ws.documents && ws.documents.length > 0 && (
+                  <p
+                    className={`text-xs truncate
+                    ${selectedWorkspaceId === ws.id ? "text-blue-200" : "text-gray-500"}`}
+                  >
+                    {ws.documents.length}{" "}
+                    {ws.documents.length === 1 ? "doc" : "docs"}
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* "..." button — only visible on hover */}
+            {/* "..." button — unchanged, keep your existing code */}
             <div
               className="relative"
               ref={openMenuId === ws.id ? menuRef : null}
             >
               <button
                 onClick={(e) => {
-                  e.stopPropagation(); // prevent row click from firing
+                  e.stopPropagation();
                   setOpenMenuId(openMenuId === ws.id ? null : ws.id);
                 }}
                 className="opacity-0 group-hover:opacity-100 text-gray-400
@@ -201,7 +224,7 @@ export default function WorkspaceList({
                 ⋮
               </button>
 
-              {/* Dropdown menu */}
+              {/* Dropdown menu — keep your existing code unchanged */}
               {openMenuId === ws.id && (
                 <div
                   className="absolute right-0 top-6 z-10 bg-white rounded
@@ -209,15 +232,13 @@ export default function WorkspaceList({
                 >
                   <button
                     onClick={() => openEditModal(ws)}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700
-                               hover:bg-gray-100"
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     ✏️ Edit
                   </button>
                   <button
                     onClick={() => handleDelete(ws)}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600
-                               hover:bg-red-50"
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
                     🗑️ Delete
                   </button>

@@ -4,14 +4,16 @@ import {
   createChatSession,
   getChatSession,
   streamMessage,
+  deleteChatSession,
 } from "../api";
 import type { ChatSession, ChatSessionDetail, ChatMessage } from "../api";
 
 interface ChatPanelProps {
   workspaceId: string;
+  showToast: (message: string, type: "success" | "error" | "info") => void;
 }
 
-export default function ChatPanel({ workspaceId }: ChatPanelProps) {
+export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSessionDetail | null>(
@@ -71,8 +73,9 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
       setSessions((prev) => [newSession, ...prev]);
       // Load it as active session (with empty messages array)
       setActiveSession({ ...newSession, messages: [] });
+      showToast("New chat created!", "success");
     } catch {
-      alert("Failed to create chat session");
+      showToast("Failed to create chat session", "error");
     }
   };
 
@@ -83,7 +86,25 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
       const detail = await getChatSession(session.id);
       setActiveSession(detail);
     } catch {
-      alert("Failed to load chat session");
+      showToast("Failed to load chat session", "error");
+    }
+  };
+
+  // ── Delete a session ───────────────────────────────────────────────────
+  const handleDeleteSession = async (
+    e: React.MouseEvent,
+    sessionId: string,
+  ) => {
+    e.stopPropagation(); // prevent row click from firing
+    if (!window.confirm("Delete this chat session?")) return;
+    try {
+      await deleteChatSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      // If deleted session was active, clear it
+      if (activeSession?.id === sessionId) setActiveSession(null);
+      showToast("Chat deleted", "info");
+    } catch {
+      showToast("Failed to delete session", "error");
     }
   };
 
@@ -160,7 +181,7 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
           });
           setStreamingText("");
           setLoading(false);
-          alert(`Streaming failed: ${error}`);
+          showToast(`Streaming failed: ${error}`, "error");
         },
       );
     } catch {
@@ -173,7 +194,7 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
       });
       setStreamingText("");
       setLoading(false);
-      alert("Failed to send message. Please try again.");
+      showToast("Failed to send message. Please try again.", "error");
     }
   };
 
@@ -211,18 +232,30 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
               </p>
             ) : (
               sessions.map((session) => (
-                <button
+                <div
                   key={session.id}
                   onClick={() => handleSelectSession(session)}
-                  className={`w-full text-left px-3 py-2 rounded text-xs truncate transition-colors
+                  className={`group w-full flex items-center justify-between px-3 py-2
+                    rounded text-xs cursor-pointer transition-colors
                     ${
                       activeSession?.id === session.id
-                        ? "bg-blue-100 text-blue-800 font-medium" // active
-                        : "text-gray-600 hover:bg-gray-100" // inactive
+                        ? "bg-blue-100 text-blue-800 font-medium"
+                        : "text-gray-600 hover:bg-gray-100"
                     }`}
                 >
-                  💬 {session.title}
-                </button>
+                  {/* Title */}
+                  <span className="truncate flex-1">💬 {session.title}</span>
+
+                  {/* Delete button — this is what USES handleDeleteSession */}
+                  <button
+                    onClick={(e) => handleDeleteSession(e, session.id)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-400
+                               hover:text-red-500 ml-1 shrink-0 transition-opacity"
+                    title="Delete session"
+                  >
+                    🗑️
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -288,9 +321,18 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
                 <button
                   onClick={handleSend}
                   disabled={loading || !question.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300
+                             text-white px-4 py-2 rounded text-sm font-medium
+                             transition-colors flex items-center gap-2"
                 >
-                  {loading ? "..." : "Send"}
+                  {loading ? (
+                    <span
+                      className="w-4 h-4 border-2 border-white
+                                     border-t-transparent rounded-full animate-spin"
+                    />
+                  ) : (
+                    "Send ➤"
+                  )}
                 </button>
               </div>
             </>
@@ -306,6 +348,12 @@ export default function ChatPanel({ workspaceId }: ChatPanelProps) {
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
 
+  // Format timestamp — e.g. "10:32 AM"
+  const time = new Date(message.created_at).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
   return (
     <div className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
       {/* Avatar */}
@@ -313,16 +361,23 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         {isUser ? "👤" : "🤖"}
       </div>
 
-      {/* Bubble */}
+      {/* Bubble + timestamp stacked */}
       <div
-        className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap
-          ${
-            isUser
-              ? "bg-blue-600 text-white rounded-tr-none" // user: blue, right
-              : "bg-gray-100 text-gray-800 rounded-tl-none" // assistant: gray, left
-          }`}
+        className={`flex flex-col gap-1 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}
       >
-        {message.content}
+        <div
+          className={`px-3 py-2 rounded-lg text-sm whitespace-pre-wrap
+            ${
+              isUser
+                ? "bg-blue-600 text-white rounded-tr-none"
+                : "bg-gray-100 text-gray-800 rounded-tl-none"
+            }`}
+        >
+          {message.content}
+        </div>
+
+        {/* Timestamp below bubble */}
+        <span className="text-xs text-gray-400">{time}</span>
       </div>
     </div>
   );

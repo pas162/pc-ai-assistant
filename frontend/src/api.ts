@@ -122,7 +122,7 @@ export interface ChatSession {
 }
 
 export interface ChatSessionDetail extends ChatSession {
-  messages: ChatMessage[];  // full history included
+  messages: ChatMessage[]; // full history included
 }
 
 export interface SendMessageResponse {
@@ -134,7 +134,7 @@ export interface SendMessageResponse {
 // POST /chat/sessions — create a new session
 export const createChatSession = async (
   workspaceId: string,
-  title: string = "New Chat"
+  title: string = "New Chat",
 ): Promise<ChatSession> => {
   const response = await api.post("/chat/sessions", {
     workspace_id: workspaceId,
@@ -145,7 +145,7 @@ export const createChatSession = async (
 
 // GET /chat/sessions?workspace_id=xxx — list sessions for a workspace
 export const getChatSessions = async (
-  workspaceId: string
+  workspaceId: string,
 ): Promise<ChatSession[]> => {
   const response = await api.get("/chat/sessions", {
     params: { workspace_id: workspaceId },
@@ -155,21 +155,15 @@ export const getChatSessions = async (
 
 // GET /chat/sessions/:id — get session with full message history
 export const getChatSession = async (
-  sessionId: string
+  sessionId: string,
 ): Promise<ChatSessionDetail> => {
   const response = await api.get(`/chat/sessions/${sessionId}`);
   return response.data;
 };
 
-// POST /chat/sessions/:id/message — send a message
-export const sendMessage = async (
-  sessionId: string,
-  question: string
-): Promise<SendMessageResponse> => {
-  const response = await api.post(`/chat/sessions/${sessionId}/message`, {
-    question,
-  });
-  return response.data;
+// DELETE /chat/sessions/:id — delete a session and all its messages
+export const deleteChatSession = async (sessionId: string): Promise<void> => {
+  await api.delete(`/chat/sessions/${sessionId}`);
 };
 
 // POST /chat/sessions/:id/stream — stream a message response
@@ -177,13 +171,13 @@ export const sendMessage = async (
 export const streamMessage = (
   sessionId: string,
   question: string,
-  onChunk: (text: string) => void,      // called for every text chunk received
-  onDone: (data: {                       // called when streaming completes
+  onChunk: (text: string) => void,
+  onDone: (data: {
     user_message_id: string;
     assistant_message_id: string;
     chunks_used: number;
   }) => void,
-  onError: (error: string) => void       // called if something goes wrong
+  onError: (error: string) => void,
 ): Promise<void> => {
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
@@ -194,64 +188,53 @@ export const streamMessage = (
       throw new Error(`HTTP error: ${response.status}`);
     }
 
-    // response.body is a ReadableStream — we read it chunk by chunk
     const reader = response.body!.getReader();
-
-    // TextDecoder converts raw bytes → string
     const decoder = new TextDecoder();
-
-    // Buffer holds incomplete lines between chunks
-    // (a single chunk from fetch may contain partial SSE lines)
     let buffer = "";
 
-    // Recursive function that keeps reading until stream ends
     const read = (): Promise<void> => {
       return reader.read().then(({ done, value }) => {
-
-        // done = true means the stream has ended
         if (done) return;
-
-        // Decode the bytes to string and add to buffer
         buffer += decoder.decode(value, { stream: true });
-
-        // Split buffer by double newline (SSE event separator)
         const events = buffer.split("\n\n");
-
-        // Last element may be incomplete — keep it in buffer
-        // All others are complete events — process them
         buffer = events.pop() ?? "";
 
         for (const event of events) {
-          // Each event looks like: "data: {...json...}"
           const line = event.trim();
           if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6);  // remove "data: "
-
+          const jsonStr = line.slice(6);
           try {
             const parsed = JSON.parse(jsonStr);
-
             if (parsed.type === "chunk") {
-              onChunk(parsed.content);        // forward text to UI
+              onChunk(parsed.content);
             } else if (parsed.type === "done") {
-              onDone({                         // notify UI streaming is complete
+              onDone({
                 user_message_id: parsed.user_message_id,
                 assistant_message_id: parsed.assistant_message_id,
                 chunks_used: parsed.chunks_used,
               });
             } else if (parsed.type === "error") {
-              onError(parsed.content);         // notify UI of error
+              onError(parsed.content);
             }
           } catch {
             // Malformed JSON — skip
           }
         }
-
-        // Read the next chunk (recursive call)
         return read();
       });
     };
 
     return read();
   });
+};
+
+// POST /chat/sessions/:id/message — send a message
+export const sendMessage = async (
+  sessionId: string,
+  question: string,
+): Promise<SendMessageResponse> => {
+  const response = await api.post(`/chat/sessions/${sessionId}/message`, {
+    question,
+  });
+  return response.data;
 };
