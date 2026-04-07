@@ -4,6 +4,7 @@ from app.core.config import get_settings
 from app.core.llm_client import test_llm_connection
 from app.routes import workspaces
 from app.routes import documents
+from app.routes import chat
 
 # Get our settings
 settings = get_settings()
@@ -25,6 +26,7 @@ app.add_middleware(
 
 app.include_router(workspaces.router)
 app.include_router(documents.router)
+app.include_router(chat.router)
 
 @app.get("/health")
 def health_check():
