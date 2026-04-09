@@ -155,31 +155,26 @@ export default function WorkspaceList({
               rounded mx-2 cursor-pointer transition-colors
               ${selectedWorkspaceId === ws.id ? "bg-blue-600" : "hover:bg-gray-800"}`}
           >
-            {/* Icon + Name + doc count */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="text-sm shrink-0">
-                {selectedWorkspaceId === ws.id ? "📂" : "📁"}
-              </span>
-              <div className="flex-1 min-w-0">
+            {/* Name + doc count — no icon */}
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-sm font-medium truncate
+                ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-300"}`}
+              >
+                {ws.name}
+              </p>
+              {ws.documents && ws.documents.length > 0 && (
                 <p
-                  className={`text-sm font-medium truncate
-                  ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-300"}`}
+                  className={`text-xs truncate
+                  ${selectedWorkspaceId === ws.id ? "text-blue-200" : "text-gray-600"}`}
                 >
-                  {ws.name}
+                  {ws.documents.length}{" "}
+                  {ws.documents.length === 1 ? "doc" : "docs"}
                 </p>
-                {ws.documents && ws.documents.length > 0 && (
-                  <p
-                    className={`text-xs truncate
-                    ${selectedWorkspaceId === ws.id ? "text-blue-200" : "text-gray-600"}`}
-                  >
-                    {ws.documents.length}{" "}
-                    {ws.documents.length === 1 ? "doc" : "docs"}
-                  </p>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* ⋮ menu */}
+            {/* ⋮ menu — keep the ⋮ character, it's punctuation not emoji */}
             <div
               className="relative"
               ref={openMenuId === ws.id ? menuRef : null}
@@ -195,25 +190,24 @@ export default function WorkspaceList({
                 ⋮
               </button>
 
-              {/* Dropdown — dark */}
               {openMenuId === ws.id && (
                 <div
                   className="absolute right-0 top-6 z-10 bg-gray-800 rounded
-                                shadow-lg border border-gray-700 py-1 w-36"
+                                shadow-lg border border-gray-700 py-1 w-32"
                 >
                   <button
                     onClick={() => openEditModal(ws)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-300
                                hover:bg-gray-700 transition-colors"
                   >
-                    ✏️ Edit
+                    Edit
                   </button>
                   <button
                     onClick={() => handleDelete(ws)}
                     className="w-full text-left px-4 py-2 text-sm text-red-400
                                hover:bg-gray-700 transition-colors"
                   >
-                    🗑️ Delete
+                    Delete
                   </button>
                 </div>
               )}

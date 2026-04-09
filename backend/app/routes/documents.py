@@ -1,42 +1,35 @@
 import os
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
-# Add this import at the top
-from app.services.text_extractor import extract_text
-# Add this import at the top
-from app.services.text_chunker import chunk_document
-# Add this import at the top
-from app.services.embedder import get_embedding
-
-# Prefix is now just /documents (Central Knowledge Base)
+from app.services.document_processor import process_document  # ← new import
 router = APIRouter(prefix="/documents", tags=["documents"])
-
 UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("", response_model=DocumentResponse)
 async def upload_document(
-    file: UploadFile = File(...), 
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
     Upload a new document to the central Knowledge Base.
+    Returns immediately with status="pending".
+    Processing (extract → chunk → embed) runs in the background.
     """
     # 1. Create the database record FIRST to get the UUID
-    # We do this so we can name the physical file with the UUID to prevent overwriting
     db_document = Document(
         filename=file.filename,
         file_type=file.filename.split(".")[-1].lower() if "." in file.filename else "unknown",
         status="pending"
     )
     db.add(db_document)
-    db.flush() # Flushes to DB to generate the ID, but doesn't commit the transaction yet
-
+    db.flush()
     # 2. Save the physical file using the new Document ID
     safe_filename = f"{db_document.id}_{file.filename}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
@@ -51,9 +44,11 @@ async def upload_document(
     db.commit()
     db.refresh(db_document)
 
-    return db_document
+    # 5. Kick off background processing — runs AFTER response is returned
+    #    Like @Async in Spring — fire and forget
+    background_tasks.add_task(process_document, db_document.id)  # ← new line
 
-
+    return db_document  # returns "pending" immediately
 @router.get("", response_model=list[DocumentResponse])
 def list_documents(db: Session = Depends(get_db)):
     """

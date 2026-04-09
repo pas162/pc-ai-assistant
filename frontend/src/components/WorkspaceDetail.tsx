@@ -3,7 +3,7 @@ import {
   getDocuments,
   linkDocumentToWorkspace,
   unlinkDocumentFromWorkspace,
-
+  // ← removed: updateWorkspace
 } from "../api";
 import type { Workspace, Document } from "../api";
 import type { ToastType } from "../hooks/useToast";
@@ -14,14 +14,12 @@ interface WorkspaceDetailProps {
   showToast: (message: string, type: ToastType) => void;
 }
 
-
 type Tab = "chat" | "documents";
 
 export default function WorkspaceDetail({
   workspace,
   showToast,
 }: WorkspaceDetailProps) {
-
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [attachedDocs, setAttachedDocs] = useState<Document[]>(
@@ -29,14 +27,7 @@ export default function WorkspaceDetail({
   );
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [attaching, setAttaching] = useState(false);
-
-
-
-
-
-
-
-
+  // ← removed: editName, editDescription, saving
 
   useEffect(() => {
     if (showAttachModal) {
@@ -46,20 +37,12 @@ export default function WorkspaceDetail({
     }
   }, [showAttachModal]);
 
-
   useEffect(() => {
     setAttachedDocs(workspace.documents);
-
-
-
-
-
-
-
-
-
     setActiveTab("chat");
+    // ← removed: setEditName, setEditDescription
   }, [workspace.id, workspace.documents]);
+  // ← removed: workspace.name, workspace.description from deps
   // ── Attach ──────────────────────────────────────────────────────────────────
   const handleAttach = async (doc: Document) => {
     try {
@@ -77,9 +60,8 @@ export default function WorkspaceDetail({
 
   // ── Detach ──────────────────────────────────────────────────────────────────
   const handleDetach = async (doc: Document) => {
-
-
-    if (!window.confirm(`Remove "${doc.filename}" from this workspace?`)) return;
+    if (!window.confirm(`Remove "${doc.filename}" from this workspace?`))
+      return;
     try {
       await unlinkDocumentFromWorkspace(workspace.id, doc.id);
       setAttachedDocs((prev) => prev.filter((d) => d.id !== doc.id));
@@ -88,298 +70,34 @@ export default function WorkspaceDetail({
       showToast("Failed to detach document", "error");
     }
   };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // ── Status badge ────────────────────────────────────────────────────────────
-  function getStatusBadgeClass(status: string): string {
-    switch (status) {
-
-
-
-
-
-
-
-
-      case "completed":  return "bg-green-900 text-green-300";
-      case "processing": return "bg-blue-900 text-blue-300";
-      case "failed":     return "bg-red-900 text-red-300";
-      default:           return "bg-yellow-900 text-yellow-300";
-    }
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  // ← removed: handleSave entirely
 
   const unattachedDocs = allDocuments.filter(
     (doc) => !attachedDocs.some((attached) => attached.id === doc.id),
   );
 
+  function getStatusBadgeClass(status: string): string {
+    switch (status) {
+      case "completed":
+        return "bg-green-900 text-green-300";
+      case "processing":
+        return "bg-blue-900 text-blue-300";
+      case "failed":
+        return "bg-red-900 text-red-300";
+      default:
+        return "bg-yellow-900 text-yellow-300";
+    }
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full bg-gray-950">
-
-      {/* ── Header + Tabs ───────────────────────────────────────────────────── */}
+      {/* ── Header + Tabs ─────────────────────────────────────────────────── */}
       <div className="px-8 pt-6 pb-0 border-b border-gray-700">
         <h2 className="text-2xl font-bold text-gray-100">{workspace.name}</h2>
         {workspace.description && (
           <p className="text-gray-400 text-sm mt-1">{workspace.description}</p>
         )}
-
-        {/* Tabs */}
         <div className="flex gap-1 mt-4">
           <button
             onClick={() => setActiveTab("chat")}
@@ -390,7 +108,7 @@ export default function WorkspaceDetail({
                   : "text-gray-500 hover:text-gray-300"
               }`}
           >
-            💬 Chat
+            Chat
           </button>
           <button
             onClick={() => setActiveTab("documents")}
@@ -401,10 +119,9 @@ export default function WorkspaceDetail({
                   : "text-gray-500 hover:text-gray-300"
               }`}
           >
-            📁 Documents
+            Documents
             {attachedDocs.length > 0 && (
-              <span className="ml-2 bg-gray-700 text-gray-300 text-xs
-                               px-1.5 py-0.5 rounded-full">
+              <span className="ml-2 bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">
                 {attachedDocs.length}
               </span>
             )}
@@ -414,7 +131,6 @@ export default function WorkspaceDetail({
 
       {/* ── Tab Content ─────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-
         {/* ── CHAT TAB ──────────────────────────────────────────────────────── */}
         {activeTab === "chat" && (
           <ChatPanel workspaceId={workspace.id} showToast={showToast} />
@@ -426,7 +142,7 @@ export default function WorkspaceDetail({
             <div className="bg-gray-900 shadow rounded-lg border border-gray-700 overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
                 <h3 className="font-semibold text-gray-200">
-                  📎 Attached Documents
+                  Attached Documents
                 </h3>
                 <button
                   onClick={() => setShowAttachModal(true)}
@@ -439,8 +155,8 @@ export default function WorkspaceDetail({
 
               {attachedDocs.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
-                  No documents attached yet. Click "Attach Document" to add
-                  one from the Knowledge Base.
+                  No documents attached yet. Click "Attach Document" to add one
+                  from the Knowledge Base.
                 </div>
               ) : (
                 <table className="min-w-full divide-y divide-gray-700">
@@ -462,7 +178,10 @@ export default function WorkspaceDetail({
                   </thead>
                   <tbody className="divide-y divide-gray-700">
                     {attachedDocs.map((doc) => (
-                      <tr key={doc.id} className="hover:bg-gray-800 transition-colors">
+                      <tr
+                        key={doc.id}
+                        className="hover:bg-gray-800 transition-colors"
+                      >
                         <td className="px-6 py-4 text-sm font-medium text-gray-200">
                           {doc.filename}
                         </td>
@@ -470,16 +189,16 @@ export default function WorkspaceDetail({
                           {doc.file_type || "unknown"}
                         </td>
                         <td className="px-6 py-4 text-sm">
-                          <span className={`px-2 py-1 text-xs font-semibold
-                            rounded-full ${getStatusBadgeClass(doc.status)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
+                          >
                             {doc.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <button
                             onClick={() => handleDetach(doc)}
-                            className="text-red-400 hover:text-red-300
-                                       text-xs font-medium transition-colors"
+                            className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
                           >
                             Remove
                           </button>
@@ -494,7 +213,7 @@ export default function WorkspaceDetail({
         )}
       </div>
 
-      {/* ── ATTACH MODAL ────────────────────────────────────────────────────── */}
+      {/* ── ATTACH MODAL ──────────────────────────────────────────────────── */}
       {showAttachModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
           <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-lg mx-4 p-6 border border-gray-700">
@@ -504,33 +223,54 @@ export default function WorkspaceDetail({
 
             {unattachedDocs.length === 0 ? (
               <p className="text-gray-400 text-sm py-4 text-center">
-                All documents are already attached, or the Knowledge Base is empty.
+                All documents are already attached, or the Knowledge Base is
+                empty.
               </p>
             ) : (
               <div className="divide-y divide-gray-700 max-h-80 overflow-y-auto border border-gray-700 rounded">
-                {unattachedDocs.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-gray-800"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">
-                        {doc.filename}
-                      </p>
-                      <p className="text-xs text-gray-500 uppercase">
-                        {doc.file_type}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleAttach(doc)}
-                      disabled={attaching}
-                      className="text-sm text-blue-400 hover:text-blue-300
-                                 font-medium disabled:opacity-50 transition-colors"
+                {unattachedDocs.map((doc) => {
+                  const isReady = doc.status === "completed";
+                  return (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-gray-800"
                     >
-                      Attach
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">
+                          {doc.filename}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-gray-500 uppercase">
+                            {doc.file_type}
+                          </p>
+                          <span
+                            className={`px-1.5 py-0.5 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
+                          >
+                            {doc.status}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAttach(doc)}
+                        disabled={!isReady || attaching}
+                        title={
+                          !isReady
+                            ? "Document must finish processing before attaching"
+                            : ""
+                        }
+                        className="text-sm font-medium transition-colors
+                                   disabled:opacity-40 disabled:cursor-not-allowed
+                                   text-blue-400 hover:text-blue-300"
+                      >
+                        {!isReady
+                          ? "Not ready"
+                          : attaching
+                            ? "Attaching..."
+                            : "Attach"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

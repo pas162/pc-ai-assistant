@@ -17,27 +17,32 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
             rounded-lg shadow-lg text-white text-sm min-w-64 max-w-sm
             ${
               toast.type === "success"
-                ? "bg-green-600"
+                ? "bg-green-700"
                 : toast.type === "error"
-                  ? "bg-red-600"
+                  ? "bg-red-700"
                   : "bg-gray-700"
             }`}
         >
           <div className="flex items-center gap-2">
-            <span>
-              {toast.type === "success"
-                ? "✅"
-                : toast.type === "error"
-                  ? "❌"
-                  : "ℹ️"}
-            </span>
+            {/* Colored dot instead of emoji */}
+            <span
+              className={`w-2 h-2 rounded-full shrink-0
+                ${
+                  toast.type === "success"
+                    ? "bg-green-300"
+                    : toast.type === "error"
+                      ? "bg-red-300"
+                      : "bg-gray-300"
+                }`}
+            />
             <span>{toast.message}</span>
           </div>
           <button
             onClick={() => onRemove(toast.id)}
-            className="text-white opacity-70 hover:opacity-100 font-bold shrink-0"
+            className="text-white opacity-60 hover:opacity-100
+                       font-bold shrink-0 text-lg leading-none"
           >
-            ✕
+            ×
           </button>
         </div>
       ))}
@@ -45,6 +50,4 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   );
 }
 
-// Re-export ToastType so other components can import it from here
-// instead of directly from hooks/useToast
 export type { ToastType };

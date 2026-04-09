@@ -69,15 +69,25 @@ export const getDocuments = async (): Promise<Document[]> => {
   return response.data;
 };
 
-// POST /documents — upload a new file
-export const uploadDocument = async (file: File): Promise<Document> => {
-  // To send a file, we MUST use FormData, not JSON!
+// POST /documents — upload a new file with progress reporting
+export const uploadDocument = async (
+  file: File,
+  onProgress?: (percent: number) => void, // ← new optional param
+): Promise<Document> => {
   const formData = new FormData();
   formData.append("file", file);
 
   const response = await api.post("/documents", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
+    },
+    onUploadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        const percent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total,
+        );
+        onProgress(percent);
+      }
     },
   });
   return response.data;

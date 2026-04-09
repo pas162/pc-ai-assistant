@@ -7,43 +7,45 @@ import { useToast } from "./hooks/useToast";
 import type { Workspace } from "./api";
 
 function App() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
+    null,
+  );
   const { toasts, showToast, removeToast } = useToast();
-  const [sidebarOpen, setSidebarOpen] = useState(true); // ← new
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="flex flex-col h-screen bg-gray-950">
-
       {/* ── TOP NAVBAR ──────────────────────────────────────────── */}
       <div className="h-12 bg-gray-900 border-b border-gray-700 flex items-center px-4 gap-3 shrink-0">
-        {/* Sidebar toggle button */}
         <button
           onClick={() => setSidebarOpen((prev) => !prev)}
-          className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-gray-700"
+          className="text-gray-400 hover:text-white transition-colors px-2 py-1
+                     rounded hover:bg-gray-700 text-xs font-medium"
           title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
         >
-          {sidebarOpen ? "◀" : "▶"}
+          {sidebarOpen ? "Hide" : "Menu"}
         </button>
 
-        <span className="text-white font-bold text-sm">🤖 PC AI Assistant</span>
+        <span className="text-white font-bold text-sm">PC AI Assistant</span>
         <span className="text-gray-600">|</span>
         <span className="text-gray-300 text-sm">
           {selectedWorkspace ? (
             <>
               <span className="text-gray-500">Workspace</span>
               <span className="text-gray-500"> › </span>
-              <span className="text-white font-medium">{selectedWorkspace.name}</span>
+              <span className="text-white font-medium">
+                {selectedWorkspace.name}
+              </span>
             </>
           ) : (
-            <span className="text-white font-medium">📚 Knowledge Base</span>
+            <span className="text-white font-medium">Knowledge Base</span>
           )}
         </span>
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-
-        {/* LEFT SIDEBAR — collapses when sidebarOpen is false */}
+        {/* LEFT SIDEBAR */}
         <div
           className={`bg-gray-900 border-r border-gray-700 text-white 
                       flex flex-col transition-all duration-300 overflow-hidden
@@ -65,7 +67,7 @@ function App() {
                     : "text-gray-400 hover:text-white hover:bg-gray-800"
                 }`}
             >
-              📚 Knowledge Base
+              Knowledge Base
             </button>
           </div>
         </div>
@@ -83,7 +85,6 @@ function App() {
             )}
           </div>
         </div>
-
       </div>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
