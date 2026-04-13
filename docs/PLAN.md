@@ -76,6 +76,10 @@ An internal AI platform with:
 - [x] Collapsible chat sessions list (toggle button)
 - [x] Replaced all emoji icons with lucide-react SVG icons
 - [x] Removed Workspace Settings section from Documents tab
+- [x] Resizable panels — sidebar and chat sessions list are draggable
+- [x] Panel sizes saved to localStorage (survives page refresh)
+- [x] Collapsible panels using ImperativePanelHandle (collapse to zero width)
+- [x] Drag handle hidden when panel is collapsed
 
 ### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
 

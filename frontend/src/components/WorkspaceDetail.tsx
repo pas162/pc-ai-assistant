@@ -134,13 +134,11 @@ export default function WorkspaceDetail({
       </div>
 
       {/* ── Tab Content ─────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {/* ── CHAT TAB
-              Use hidden instead of conditional rendering!
-              This keeps ChatPanel mounted so it never loses its state.
-              Think of it like display:none in CSS — the component stays
-              alive in memory, just invisible. ── */}
-        <div className={activeTab === "chat" ? "block h-full" : "hidden"}>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Chat tab — zero padding, fills full space */}
+        <div
+          className={activeTab === "chat" ? "flex-1 overflow-hidden" : "hidden"}
+        >
           <ChatPanel
             workspaceId={workspace.id}
             showToast={showToast}
@@ -149,78 +147,80 @@ export default function WorkspaceDetail({
           />
         </div>
 
-        {/* ── DOCUMENTS TAB — conditional render is fine here ── */}
+        {/* Documents tab — keeps its own padding */}
         {activeTab === "documents" && (
-          <div className="flex flex-col gap-6">
-            <div className="bg-gray-900 shadow rounded-lg border border-gray-700 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-                <h3 className="font-semibold text-gray-200">
-                  Attached Documents
-                </h3>
-                <button
-                  onClick={() => setShowAttachModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            <div className="flex flex-col gap-6">
+              <div className="bg-gray-900 shadow rounded-lg border border-gray-700 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+                  <h3 className="font-semibold text-gray-200">
+                    Attached Documents
+                  </h3>
+                  <button
+                    onClick={() => setShowAttachModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white
                              text-sm px-3 py-1.5 rounded transition-colors"
-                >
-                  + Attach Document
-                </button>
-              </div>
-
-              {attachedDocs.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  No documents attached yet. Click "Attach Document" to add one
-                  from the Knowledge Base.
+                  >
+                    + Attach Document
+                  </button>
                 </div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead className="bg-gray-800">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                        Filename
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {attachedDocs.map((doc) => (
-                      <tr
-                        key={doc.id}
-                        className="hover:bg-gray-800 transition-colors"
-                      >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-200">
-                          {doc.filename}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-400 uppercase">
-                          {doc.file_type || "unknown"}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
-                          >
-                            {doc.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <button
-                            onClick={() => handleDetach(doc)}
-                            className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
-                          >
-                            Remove
-                          </button>
-                        </td>
+
+                {attachedDocs.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    No documents attached yet. Click "Attach Document" to add
+                    one from the Knowledge Base.
+                  </div>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead className="bg-gray-800">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Filename
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">
+                          Action
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {attachedDocs.map((doc) => (
+                        <tr
+                          key={doc.id}
+                          className="hover:bg-gray-800 transition-colors"
+                        >
+                          <td className="px-6 py-4 text-sm font-medium text-gray-200">
+                            {doc.filename}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-400 uppercase">
+                            {doc.file_type || "unknown"}
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <span
+                              className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
+                            >
+                              {doc.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm">
+                            <button
+                              onClick={() => handleDetach(doc)}
+                              className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import type { ImperativePanelHandle } from "react-resizable-panels";
 import {
   getChatSessions,
   createChatSession,
@@ -55,6 +57,7 @@ export default function ChatPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingTextRef = useRef("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const sessionsPanelRef = useRef<ImperativePanelHandle>(null);
 
   const onSessionChangeRef = useRef(onSessionChange);
   useEffect(() => {
@@ -65,7 +68,6 @@ export default function ChatPanel({
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
-
   useEffect(() => {
     streamingTextRef.current = streamingText;
   }, [streamingText]);
@@ -77,7 +79,14 @@ export default function ChatPanel({
     }
   }, [renamingId]);
 
-  // ── Load sessions when workspace changes ─────────────────────────────────
+  useEffect(() => {
+    if (sessionsOpen) {
+      sessionsPanelRef.current?.expand();
+    } else {
+      sessionsPanelRef.current?.collapse();
+    }
+  }, [sessionsOpen]);
+
   useEffect(() => {
     let cancelled = false;
     const loadSessions = async () => {
@@ -95,12 +104,12 @@ export default function ChatPanel({
               const detail = await getChatSession(target.id);
               if (!cancelled) setActiveSession(detail);
             } catch {
-              // silently ignore
+              /* silently ignore */
             }
           }
         }
       } catch {
-        // silently ignore
+        /* silently ignore */
       } finally {
         if (!cancelled) setLoadingSessions(false);
       }
@@ -111,7 +120,6 @@ export default function ChatPanel({
     };
   }, [workspaceId]);
 
-  // ── Fetch models once on mount ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const loadModels = async () => {
@@ -119,14 +127,10 @@ export default function ChatPanel({
         setModelsLoading(true);
         const models = await fetchAvailableModels();
         if (!cancelled) {
-          const merged = Array.from(new Set([DEFAULT_MODEL, ...models]));
-          setAvailableModels(merged);
+          setAvailableModels(Array.from(new Set([DEFAULT_MODEL, ...models])));
         }
       } catch {
-        if (!cancelled) {
-          console.warn("Could not fetch model list, using default.");
-          setAvailableModels([DEFAULT_MODEL]);
-        }
+        if (!cancelled) setAvailableModels([DEFAULT_MODEL]);
       } finally {
         if (!cancelled) setModelsLoading(false);
       }
@@ -137,7 +141,6 @@ export default function ChatPanel({
     };
   }, []);
 
-  // ── Notify App when active session changes ────────────────────────────────
   useEffect(() => {
     if (activeSession?.id) {
       onSessionChangeRef.current(workspaceId, activeSession.id);
@@ -233,7 +236,6 @@ export default function ChatPanel({
       content: questionText,
       created_at: new Date().toISOString(),
     };
-
     setActiveSession((prev) =>
       prev ? { ...prev, messages: [...prev.messages, tempUserMessage] } : prev,
     );
@@ -271,7 +273,6 @@ export default function ChatPanel({
               ],
             };
           });
-
           if (data.new_title && activeSession) {
             setSessions((prev) =>
               prev.map((s) =>
@@ -284,7 +285,6 @@ export default function ChatPanel({
               prev ? { ...prev, title: data.new_title! } : prev,
             );
           }
-
           setStreamingText("");
           setLoading(false);
         },
@@ -298,8 +298,6 @@ export default function ChatPanel({
           });
           setStreamingText("");
           setLoading(false);
-
-          // ── Actionable error message for token/config issues ──
           const isTokenError = error.toLowerCase().includes("api token");
           showToast(
             isTokenError
@@ -332,27 +330,52 @@ export default function ChatPanel({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex gap-4 h-full">
-        {/* ── LEFT: Sessions List — collapsible ───────────────── */}
-        <div
-          className={`flex flex-col gap-2 transition-all duration-300 overflow-hidden
-          ${sessionsOpen ? "w-48" : "w-8"}`}
+    // ✅ outer div is the positioning context for the expand button
+    <div className="flex h-full overflow-hidden relative">
+      {/* Expand button — outside PanelGroup, always visible, anchored to outer div */}
+      {!sessionsOpen && (
+        <button
+          onClick={() => setSessionsOpen(true)}
+          className="absolute top-2 left-2 z-20 text-gray-500 hover:text-gray-300
+                     p-1 rounded hover:bg-gray-800 transition-colors"
+          title="Show chat list"
         >
-          {sessionsOpen ? (
+          <ChevronRight size={14} />
+        </button>
+      )}
+
+      <PanelGroup
+        direction="horizontal"
+        autoSaveId="chat-layout"
+        className="flex-1"
+      >
+        {/* ── LEFT: Sessions Panel ────────────────────────────── */}
+        <Panel
+          ref={sessionsPanelRef}
+          defaultSize={22}
+          minSize={15}
+          maxSize={40}
+          collapsible={true}
+          collapsedSize={0}
+          onCollapse={() => setSessionsOpen(false)}
+          onExpand={() => setSessionsOpen(true)}
+          style={{ overflow: "hidden", minWidth: 0 }}
+          className="flex flex-col gap-2 pt-2 pr-1 pb-2 pl-1"
+        >
+          {sessionsOpen && (
             <>
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleNewSession}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white
-                             text-sm px-3 py-2 rounded font-medium transition-colors"
+                             text-sm px-2 py-2 rounded font-medium transition-colors"
                 >
                   + New Chat
                 </button>
                 <button
                   onClick={() => setSessionsOpen(false)}
-                  className="text-gray-500 hover:text-gray-300 p-2 rounded
-                             hover:bg-gray-800 transition-colors"
+                  className="text-gray-500 hover:text-gray-300 p-1.5 rounded
+                             hover:bg-gray-800 transition-colors shrink-0"
                   title="Hide chat list"
                 >
                   <ChevronLeft size={16} />
@@ -377,7 +400,7 @@ export default function ChatPanel({
                         handleSelectSession(session)
                       }
                       className={`group w-full flex items-center justify-between
-                        px-3 py-2 rounded text-xs cursor-pointer transition-colors
+                        px-2 py-1.5 rounded text-xs cursor-pointer transition-colors
                         ${
                           activeSession?.id === session.id
                             ? "bg-blue-600 text-white font-medium"
@@ -408,7 +431,6 @@ export default function ChatPanel({
                           {session.title}
                         </span>
                       )}
-
                       {renamingId !== session.id && (
                         <button
                           onClick={(e) => handleDeleteSession(e, session.id)}
@@ -424,30 +446,25 @@ export default function ChatPanel({
                 )}
               </div>
             </>
-          ) : (
-            <button
-              onClick={() => setSessionsOpen(true)}
-              className="text-gray-500 hover:text-gray-300 p-2 rounded
-                         hover:bg-gray-800 transition-colors"
-              title="Show chat list"
-            >
-              <ChevronRight size={16} />
-            </button>
           )}
-        </div>
+        </Panel>
 
-        {/* ── RIGHT: Chat Window ───────────────────────────────── */}
-        <div
-          className="flex-1 flex flex-col border border-gray-700 rounded-lg
-                     bg-gray-900 overflow-hidden"
-        >
+        {/* Drag handle — hidden when collapsed */}
+        <PanelResizeHandle
+          hitAreaMargins={{ coarse: 10, fine: 5 }}
+          className={`w-1 bg-gray-700 hover:bg-blue-500
+                     active:bg-blue-400 transition-colors cursor-col-resize
+                     ${!sessionsOpen ? "hidden" : ""}`}
+        />
+
+        {/* ── RIGHT: Chat Window — no bg, fills remaining space ── */}
+        <Panel className="flex flex-col overflow-hidden">
           {!activeSession ? (
             <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
               Select a chat or create a new one
             </div>
           ) : (
             <>
-              {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                 {activeSession.messages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
@@ -472,7 +489,7 @@ export default function ChatPanel({
 
                 {loading && !streamingText && (
                   <div className="flex gap-2 items-center text-gray-500 text-sm">
-                    <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs">
+                    <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
                       <Bot size={14} className="text-green-300" />
                     </div>
                     <span className="animate-pulse">Thinking...</span>
@@ -481,7 +498,6 @@ export default function ChatPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Model selector + input area */}
               <div className="border-t border-gray-700 p-4 space-y-2">
                 <div className="flex">
                   <select
@@ -542,8 +558,8 @@ export default function ChatPanel({
               </div>
             </>
           )}
-        </div>
-      </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
 }
@@ -568,17 +584,16 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           <Bot size={14} className="text-green-300" />
         )}
       </div>
-
       <div
         className={`flex flex-col gap-1 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}
       >
         <div
           className={`px-3 py-2 rounded-lg text-sm whitespace-pre-wrap
-            ${
-              isUser
-                ? "bg-blue-600 text-white rounded-tr-none"
-                : "bg-gray-800 text-gray-200 rounded-tl-none"
-            }`}
+          ${
+            isUser
+              ? "bg-blue-600 text-white rounded-tr-none"
+              : "bg-gray-800 text-gray-200 rounded-tl-none"
+          }`}
         >
           {message.content}
         </div>
