@@ -83,6 +83,8 @@ An internal AI platform with:
 - [x] Combined "Workspaces" header + New button into single clickable row
 - [x] Combined "Chats" header + New Chat button into single clickable row
 - [x] Smaller chat session title font size (text-xs)
+- [x] Custom slim scrollbar (4px pill, dark theme, horizontal + vertical)
+- [x] Unified chat input area (textarea + model selector + send button in one card)
 
 ### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
 

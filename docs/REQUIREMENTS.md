@@ -92,6 +92,8 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Workspaces header row is fully clickable to create new workspace
 - [x] Chats header row is fully clickable to create new chat session
 - [x] Chat session titles use smaller font for compact display
+- [x] Custom scrollbar styling (4px slim pill, matches dark theme)
+- [x] Unified chat input card (textarea, model selector, send button grouped)
 
 ## In Progress
 

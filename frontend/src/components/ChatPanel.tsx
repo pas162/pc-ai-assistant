@@ -383,7 +383,7 @@ export default function ChatPanel({
                 />
               </button>
 
-              <div className="flex-1 overflow-y-auto flex flex-col gap-1 py-1">
+              <div className="flex-1 overflow-y-auto flex flex-col gap-1 py-1 custom-scrollbar">
                 {loadingSessions ? (
                   <p className="text-xs text-gray-500 text-center mt-4">
                     Loading...
@@ -466,7 +466,8 @@ export default function ChatPanel({
             </div>
           ) : (
             <>
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+              {/* Messages area */}
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar">
                 {activeSession.messages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
                     Ask a question about your documents
@@ -499,30 +500,14 @@ export default function ChatPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="border-t border-gray-700 p-4 space-y-2">
-                <div className="flex">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    disabled={modelsLoading}
-                    className="bg-gray-800 text-gray-400 text-xs border border-gray-700
-                               rounded px-2 py-1 focus:outline-none focus:ring-1
-                               focus:ring-blue-500 disabled:opacity-50 disabled:cursor-wait
-                               max-w-55"
-                  >
-                    {modelsLoading ? (
-                      <option>Loading...</option>
-                    ) : (
-                      availableModels.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                <div className="flex gap-2">
+              <div className="border-t border-gray-700 p-3">
+                {/* Unified container */}
+                <div
+                  className="flex flex-col bg-gray-800 border border-gray-600
+                                rounded-xl focus-within:border-blue-500
+                                transition-colors"
+                >
+                  {/* Textarea */}
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
@@ -530,31 +515,53 @@ export default function ChatPanel({
                     placeholder="Ask a question... (Enter to send, Shift+Enter for new line)"
                     rows={2}
                     disabled={loading}
-                    className="flex-1 resize-none bg-gray-800 border border-gray-600
-                               rounded px-3 py-2 text-sm text-gray-200
+                    className="flex-1 resize-none bg-transparent border-none
+                               px-4 pt-3 pb-1 text-sm text-gray-200
                                placeholder-gray-500 focus:outline-none
-                               focus:ring-2 focus:ring-blue-500
-                               disabled:opacity-50 transition-colors"
+                               disabled:opacity-50"
                   />
-                  <button
-                    onClick={handleSend}
-                    disabled={loading || !question.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700
-                               disabled:text-gray-500 text-white px-4 py-2 rounded
-                               text-sm font-medium transition-colors
-                               flex items-center gap-2"
-                  >
-                    {loading ? (
-                      <span
-                        className="w-4 h-4 border-2 border-white
-                                       border-t-transparent rounded-full animate-spin"
-                      />
-                    ) : (
-                      <>
-                        Send <Send size={14} />
-                      </>
-                    )}
-                  </button>
+
+                  {/* Bottom bar — model selector + send button */}
+                  <div className="flex items-center justify-between px-3 pb-2 pt-1">
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      disabled={modelsLoading}
+                      className="bg-gray-700 text-gray-400 text-xs border border-gray-600
+                                 rounded-lg px-2 py-1 focus:outline-none focus:ring-1
+                                 focus:ring-blue-500 disabled:opacity-50
+                                 disabled:cursor-wait max-w-52"
+                    >
+                      {modelsLoading ? (
+                        <option>Loading...</option>
+                      ) : (
+                        availableModels.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    <button
+                      onClick={handleSend}
+                      disabled={loading || !question.trim()}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700
+                                 disabled:text-gray-500 text-white px-3 py-1.5
+                                 rounded-lg text-sm font-medium transition-colors
+                                 flex items-center gap-1.5"
+                    >
+                      {loading ? (
+                        <span
+                          className="w-4 h-4 border-2 border-white
+                                         border-t-transparent rounded-full animate-spin"
+                        />
+                      ) : (
+                        <>
+                          Send <Send size={13} />
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

@@ -97,7 +97,7 @@ export default function WorkspaceDetail({
   return (
     <div className="flex flex-col h-full bg-gray-950">
       {/* ── Header + Tabs ─────────────────────────────────────────────────── */}
-      <div className="px-8 pt-6 pb-0 border-b border-gray-700">
+      <div className="px-8 pt-1 pb-0 border-b border-gray-700">
         <h2 className="text-2xl font-bold text-gray-100">{workspace.name}</h2>
         {workspace.description && (
           <p className="text-gray-400 text-sm mt-1">{workspace.description}</p>
