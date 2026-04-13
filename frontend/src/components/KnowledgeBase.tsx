@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { getDocuments, uploadDocument, deleteDocument } from "../api";
 import type { Document } from "../api";
 import type { ToastType } from "../hooks/useToast";
+import { Upload, FileText } from "lucide-react";
 
 interface KnowledgeBaseProps {
   showToast: (message: string, type: ToastType) => void;
@@ -148,7 +149,10 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 
                      rounded transition-colors disabled:opacity-50 text-sm font-medium"
         >
-          {uploading ? `Uploading ${uploadProgress}%` : "Upload File"}
+          <span className="flex items-center gap-2">
+            <Upload size={14} />
+            {uploading ? `Uploading ${uploadProgress}%` : "Upload File"}
+          </span>
         </button>
       </div>
 
@@ -213,7 +217,10 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
                     className="px-6 py-4 text-sm font-medium text-gray-200 max-w-xs truncate"
                     title={doc.filename}
                   >
-                    {doc.filename}
+                    <span className="flex items-center gap-2">
+                      <FileText size={14} className="text-gray-400 shrink-0" />
+                      {doc.filename}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-400 uppercase">
                     {doc.file_type || "unknown"}

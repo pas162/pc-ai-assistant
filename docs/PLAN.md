@@ -44,9 +44,9 @@ An internal AI platform with:
 
 ### Sprint 4 — Chat Feature (Steps 16-18) ✅ COMPLETE
 
-- [x] Step 16: Chat API with history (sessions + messages + RAG) ✅
-- [x] Step 17: Chat UI ✅
-- [x] Step 18: Streaming responses ✅
+- [x] Step 16: Chat API with history (sessions + messages + RAG)
+- [x] Step 17: Chat UI
+- [x] Step 18: Streaming responses
 
 ### Sprint 5 — Code Generation (Steps 19-22)
 
@@ -62,15 +62,28 @@ An internal AI platform with:
 - [ ] Step 25: Docker Compose (run everything together)
 - [ ] Step 26: Final testing + documentation
 
-### Frontend Polish (Completed outside sprint plan)
+### Frontend Polish (Completed outside sprint plan) ✅ COMPLETE
 
 - [x] Status badge colors (green/yellow/red/blue based on document status)
 - [x] Top navbar with app title + current workspace breadcrumb
-- [x] Sidebar polish (folder icons, doc count, better buttons)
+- [x] Sidebar polish (doc count, better buttons)
 - [x] Chat UI polish (timestamps, delete session, spinner send button)
 - [x] Toast notifications (replaced all alert() popups)
 - [x] Workspace detail tabs (Chat tab + Documents tab)
 - [x] Documents tab includes attached docs management
 - [x] Full dark mode (night mode only)
-- [x] Collapsible sidebar (toggle with ◀▶ button in navbar)
-- [x] Collapsible chat sessions list (toggle with ◀▶ button)
+- [x] Collapsible sidebar (toggle button in navbar)
+- [x] Collapsible chat sessions list (toggle button)
+- [x] Replaced all emoji icons with lucide-react SVG icons
+- [x] Removed Workspace Settings section from Documents tab
+
+### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Document processing pipeline moved to background task (FastAPI BackgroundTasks)
+- [x] Upload progress bar (0–100% during file transfer)
+- [x] Processing progress bar (0–100% during embedding generation)
+- [x] Frontend polls every 2 seconds for live status updates
+- [x] Cancel processing by deleting a pending/processing document
+- [x] Embedding cache (.pkl) saved to disk so attach-to-workspace is instant
+- [x] Fixed attach button — only enabled when document status is "completed"
+- [x] Fixed attach bug — tracks attaching ID instead of boolean flag

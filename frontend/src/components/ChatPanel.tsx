@@ -8,6 +8,15 @@ import {
 } from "../api";
 import type { ChatSession, ChatSessionDetail, ChatMessage } from "../api";
 import type { ToastType } from "../hooks/useToast";
+import {
+  MessageSquare,
+  Trash2,
+  Bot,
+  User,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 interface ChatPanelProps {
   workspaceId: string;
@@ -207,7 +216,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                              hover:bg-gray-800 transition-colors"
                   title="Hide chat list"
                 >
-                  ◀
+                  <ChevronLeft size={16} />
                 </button>
               </div>
 
@@ -233,8 +242,12 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                 : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
             }`}
                     >
-                      <span className="truncate flex-1">
-                        💬 {session.title}
+                      <span className="truncate flex-1 flex items-center gap-1">
+                        <MessageSquare
+                          size={12}
+                          className="shrink-0 text-blue-400"
+                        />
+                        {session.title}
                       </span>
                       <button
                         onClick={(e) => handleDeleteSession(e, session.id)}
@@ -242,7 +255,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                                    hover:text-red-400 ml-1 shrink-0 transition-opacity"
                         title="Delete session"
                       >
-                        🗑️
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))
@@ -257,7 +270,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                          hover:bg-gray-800 transition-colors"
               title="Show chat list"
             >
-              ▶
+              <ChevronRight size={16} />
             </button>
           )}
         </div>
@@ -310,7 +323,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                       className="w-6 h-6 rounded-full bg-gray-700
                                     flex items-center justify-center text-xs"
                     >
-                      🤖
+                      <Bot size={14} className="text-green-300" />
                     </div>
                     <span className="animate-pulse">Thinking...</span>
                   </div>
@@ -347,7 +360,9 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                                      border-t-transparent rounded-full animate-spin"
                     />
                   ) : (
-                    "Send ➤"
+                    <>
+                      Send <Send size={14} />
+                    </>
                   )}
                 </button>
               </div>
@@ -375,7 +390,11 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         className="w-6 h-6 rounded-full flex items-center justify-center
                       text-xs shrink-0 mt-1 bg-gray-700"
       >
-        {isUser ? "👤" : "🤖"}
+        {isUser ? (
+          <User size={14} className="text-blue-300" />
+        ) : (
+          <Bot size={14} className="text-green-300" />
+        )}
       </div>
 
       {/* Bubble + timestamp */}

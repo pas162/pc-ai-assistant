@@ -7,7 +7,7 @@ import {
 } from "../api";
 import type { Workspace } from "../api";
 import type { ToastType } from "../hooks/useToast";
-
+import { FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
   onSelectWorkspace: (workspace: Workspace) => void;
@@ -157,10 +157,8 @@ export default function WorkspaceList({
           >
             {/* Name + doc count — no icon */}
             <div className="flex-1 min-w-0">
-              <p
-                className={`text-sm font-medium truncate
-                ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-300"}`}
-              >
+              <p className="text-sm font-medium truncate flex items-center gap-1">
+                <FolderOpen size={14} className="shrink-0 text-blue-400" />
                 {ws.name}
               </p>
               {ws.documents && ws.documents.length > 0 && (
@@ -187,7 +185,7 @@ export default function WorkspaceList({
                 className="opacity-0 group-hover:opacity-100 text-gray-400
                            hover:text-white px-1 rounded transition-opacity"
               >
-                ⋮
+                <MoreVertical size={16} />
               </button>
 
               {openMenuId === ws.id && (
@@ -200,14 +198,18 @@ export default function WorkspaceList({
                     className="w-full text-left px-4 py-2 text-sm text-gray-300
                                hover:bg-gray-700 transition-colors"
                   >
-                    Edit
+                    <span className="flex items-center gap-2">
+                      <Pencil size={13} /> Edit
+                    </span>
                   </button>
                   <button
                     onClick={() => handleDelete(ws)}
                     className="w-full text-left px-4 py-2 text-sm text-red-400
                                hover:bg-gray-700 transition-colors"
                   >
-                    Delete
+                    <span className="flex items-center gap-2 text-red-400">
+                      <Trash2 size={13} /> Delete
+                    </span>
                   </button>
                 </div>
               )}

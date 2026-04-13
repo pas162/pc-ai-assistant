@@ -1,4 +1,5 @@
 import type { Toast, ToastType } from "../hooks/useToast";
+import { CheckCircle, XCircle, Info } from "lucide-react";
 
 interface ToastContainerProps {
   toasts: Toast[];
@@ -24,17 +25,15 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
             }`}
         >
           <div className="flex items-center gap-2">
-            {/* Colored dot instead of emoji */}
-            <span
-              className={`w-2 h-2 rounded-full shrink-0
-                ${
-                  toast.type === "success"
-                    ? "bg-green-300"
-                    : toast.type === "error"
-                      ? "bg-red-300"
-                      : "bg-gray-300"
-                }`}
-            />
+            {toast.type === "success" && (
+              <CheckCircle size={16} className="text-green-300 shrink-0" />
+            )}
+            {toast.type === "error" && (
+              <XCircle size={16} className="text-red-300 shrink-0" />
+            )}
+            {toast.type === "info" && (
+              <Info size={16} className="text-gray-300 shrink-0" />
+            )}
             <span>{toast.message}</span>
           </div>
           <button

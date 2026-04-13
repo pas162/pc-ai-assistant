@@ -25,6 +25,16 @@
 | python-docx           | 1.1.2   | Extract text from DOCX files             |
 | sentence-transformers | 3.0.1   | Local embedding model (all-MiniLM-L6-v2) |
 
+## Key Frontend Packages
+
+| Package      | Version | Purpose                                  |
+| ------------ | ------- | ---------------------------------------- |
+| react        | 18+     | UI framework                             |
+| typescript   | 5+      | Type safety                              |
+| tailwindcss  | 3+      | Utility-first CSS framework              |
+| axios        | 1+      | HTTP client for API calls                |
+| lucide-react | latest  | Clean SVG icon library (replaces emojis) |
+
 ## Embedding Model
 
 - **Model:** `all-MiniLM-L6-v2` (currently for testing)
@@ -53,6 +63,7 @@ Chat Sessions belong to a Workspace and contain many Messages.
    - `file_type` (String, e.g. "pdf", "txt", "docx")
    - `file_size` (Integer, bytes)
    - `status` (String: "pending" → "processing" → "completed" / "failed")
+   - `progress` (Integer: 0–100, tracks background processing progress)
    - `created_at` (DateTime)
 
 3. **`workspace_documents`** (Junction Table)
@@ -81,7 +92,13 @@ Chat Sessions belong to a Workspace and contain many Messages.
 
 - Uploaded files are saved to `backend/uploaded_docs/`
 - Files are named as `{document_id}_{original_filename}` to prevent collisions
-- This folder is excluded from Git (`.gitignore`)
+- Embedding cache files are saved as `{document_id}_cache.pkl` in the same folder
+- Both file types are excluded from Git (`.gitignore`)
+
+## Document Processing Pipeline
+
+When a file is uploaded, processing happens **in the background** (FastAPI `BackgroundTasks`).
+The frontend polls `GET /documents` every 2 seconds to show live progress.
 
 ## LLM Integration
 

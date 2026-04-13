@@ -74,14 +74,35 @@ def update_workspace(workspace_id: str, workspace: WorkspaceUpdate, db: Session 
 def delete_workspace(workspace_id: str, db: Session = Depends(get_db)):
     """
     Delete a workspace by id.
+    Also deletes all associated chat sessions and their messages.
     """
+    from app.models.chat import ChatSession, ChatMessage  # Import here to avoid circular imports
+    
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if workspace is None:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
+    # Step 1: Find all chat sessions in this workspace
+    sessions = db.query(ChatSession).filter(
+        ChatSession.workspace_id == workspace_id
+    ).all()
+    
+    # Step 2: Delete all messages in those sessions first (child records)
+    for session in sessions:
+        db.query(ChatMessage).filter(
+            ChatMessage.session_id == session.id
+        ).delete()
+    
+    # Step 3: Delete all chat sessions in this workspace
+    db.query(ChatSession).filter(
+        ChatSession.workspace_id == workspace_id
+    ).delete()
+    
+    # Step 4: Now delete the workspace itself
     db.delete(workspace)
     db.commit()
-    return {"message": "Workspace deleted successfully"}
+    
+    return {"message": "Workspace and all associated chat sessions deleted successfully"}
 
 
 @router.post("/{workspace_id}/documents/{document_id}")

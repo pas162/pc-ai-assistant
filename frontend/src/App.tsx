@@ -5,6 +5,7 @@ import WorkspaceDetail from "./components/WorkspaceDetail";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
 import type { Workspace } from "./api";
+import { Menu, X, Database } from "lucide-react";
 
 function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
@@ -23,7 +24,7 @@ function App() {
                      rounded hover:bg-gray-700 text-xs font-medium"
           title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
         >
-          {sidebarOpen ? "Hide" : "Menu"}
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
 
         <span className="text-white font-bold text-sm">PC AI Assistant</span>
@@ -38,7 +39,10 @@ function App() {
               </span>
             </>
           ) : (
-            <span className="text-white font-medium">Knowledge Base</span>
+            <span className="flex items-center gap-2">
+              <Database size={14} />
+              Knowledge Base
+            </span>
           )}
         </span>
       </div>

@@ -38,20 +38,20 @@ def process_document(document_id: str):
         document = db.query(Document).filter(Document.id == document_id).first()
         file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
         
-        # 1. Extract Text (10%)
+        # 1. Extract Text (1%)
         text = extract_text(file_path, document.file_type)
         if not text.strip():
             raise ValueError("No text extracted")
-        if not _update_progress(db, document_id, 10):
+        if not _update_progress(db, document_id, 1):
             return
 
         # 2. Chunk Text (30%)
         chunk_dicts = chunk_document(text, document_id=document.id)
         chunk_texts = [c["text"] for c in chunk_dicts]
-        if not _update_progress(db, document_id, 30):
+        if not _update_progress(db, document_id, 3):
             return
 
-        # 3. Embeddings in batches (30% -> 95%)
+        # 3. Embeddings in batches (3% -> 95%)
         all_embeddings = []
         total_chunks = len(chunk_texts)
         
@@ -62,7 +62,7 @@ def process_document(document_id: str):
             batch_embeddings = get_embeddings_batch(batch)
             all_embeddings.extend(batch_embeddings)
             
-            progress = int(30 + ((batch_end / total_chunks) * 65))
+            progress = int(3 + ((batch_end / total_chunks) * 92))
 
             # CHECK IF CANCELED AFTER EVERY BATCH!
             is_active = _update_progress(db, document_id, progress)
