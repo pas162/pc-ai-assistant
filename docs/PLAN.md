@@ -72,7 +72,7 @@ An internal AI platform with:
 - [x] Workspace detail tabs (Chat tab + Documents tab)
 - [x] Documents tab includes attached docs management
 - [x] Full dark mode (night mode only)
-- [x] Collapsible sidebar (toggle button in navbar)
+- [x] Collapsible sidebar (Lucide PanelLeftClose/PanelLeftOpen icons)
 - [x] Collapsible chat sessions list (toggle button)
 - [x] Replaced all emoji icons with lucide-react SVG icons
 - [x] Removed Workspace Settings section from Documents tab
@@ -87,3 +87,12 @@ An internal AI platform with:
 - [x] Embedding cache (.pkl) saved to disk so attach-to-workspace is instant
 - [x] Fixed attach button — only enabled when document status is "completed"
 - [x] Fixed attach bug — tracks attaching ID instead of boolean flag
+- [x] ChromaDB batch insert (5000 per batch) to handle large documents
+
+### Chat UX Improvements (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Auto-title chat sessions using LLM after first message (few-shot prompt)
+- [x] Manual rename by double-clicking session title (inline input)
+- [x] PATCH /chat/sessions/{id} endpoint for renaming
+- [x] Last active session remembered per workspace (survives workspace switching)
+- [x] Tab switching (Chat ↔ Documents) preserves chat state using CSS hidden

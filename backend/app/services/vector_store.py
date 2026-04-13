@@ -1,6 +1,10 @@
 from typing import List
 from app.core.chromadb_client import get_workspace_collection
 
+# ChromaDB has a hard limit of 5461 vectors per upsert call
+# We use 5000 to stay safely under the limit
+CHROMA_BATCH_SIZE = 5000
+
 
 def store_document_vectors(
     document_id: str,
@@ -10,10 +14,7 @@ def store_document_vectors(
 ) -> int:
     """
     Save document chunks + their vectors into a workspace's ChromaDB collection.
-
-    Think of this like doing INSERT INTO in PostgreSQL,
-    but instead of rows, we're inserting vectors for similarity search.
-
+    Automatically splits into batches of 5000 to respect ChromaDB's size limit.
     Returns the number of chunks stored.
     """
     if not chunks:
@@ -24,32 +25,29 @@ def store_document_vectors(
     collection = get_workspace_collection(workspace_id)
 
     # Step 2: Build unique IDs for each chunk
-    # Format: "{document_id}_chunk_{index}"
-    # Example: "abc-123_chunk_0", "abc-123_chunk_1"
     ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
 
     # Step 3: Build metadata for each chunk
-    # This lets us filter or identify chunks later during retrieval
     metadatas = [
-        {
-            "document_id": document_id,
-            "chunk_index": i
-        }
+        {"document_id": document_id, "chunk_index": i}
         for i in range(len(chunks))
     ]
 
-    # Step 4: Store everything in ChromaDB
-    # upsert = insert if not exists, update if already exists
-    # Safer than .add() which throws an error on duplicate IDs
-    collection.upsert(
-        ids=ids,
-        embeddings=embeddings,
-        documents=chunks,
-        metadatas=metadatas
-    )
+    # Step 4: Store in batches to respect ChromaDB's max batch size limit
+    total = len(chunks)
+    for batch_start in range(0, total, CHROMA_BATCH_SIZE):
+        batch_end = min(batch_start + CHROMA_BATCH_SIZE, total)
 
-    print(f"  Stored {len(chunks)} chunks for document {document_id} in workspace {workspace_id}")
-    return len(chunks)
+        collection.upsert(
+            ids=ids[batch_start:batch_end],
+            embeddings=embeddings[batch_start:batch_end],
+            documents=chunks[batch_start:batch_end],
+            metadatas=metadatas[batch_start:batch_end]
+        )
+        print(f"  Stored chunks {batch_start}–{batch_end} of {total} "
+              f"for document {document_id} in workspace {workspace_id}")
+
+    return total
 
 
 def delete_document_vectors(
@@ -58,19 +56,15 @@ def delete_document_vectors(
 ) -> None:
     """
     Remove all chunks belonging to a document from a workspace's collection.
-
     Called when:
     - A document is deleted from the Knowledge Base entirely
     - A document is detached from a specific workspace
-
-    Think of this like DELETE FROM WHERE document_id = ? in PostgreSQL.
     """
     collection = get_workspace_collection(workspace_id)
 
-    # ChromaDB's .delete() with 'where' filters by metadata
-    # This finds all chunks where metadata.document_id matches
     collection.delete(
         where={"document_id": document_id}
     )
 
-    print(f"  Deleted vectors for document {document_id} from workspace {workspace_id}")
+    print(f"  Deleted vectors for document {document_id} "
+          f"from workspace {workspace_id}")

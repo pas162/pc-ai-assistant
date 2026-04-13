@@ -12,6 +12,8 @@ import ChatPanel from "./ChatPanel";
 interface WorkspaceDetailProps {
   workspace: Workspace;
   showToast: (message: string, type: ToastType) => void;
+  activeSessionId: string | null; // ← new
+  onSessionChange: (workspaceId: string, sessionId: string) => void; // ← new
 }
 
 type Tab = "chat" | "documents";
@@ -19,6 +21,8 @@ type Tab = "chat" | "documents";
 export default function WorkspaceDetail({
   workspace,
   showToast,
+  activeSessionId,
+  onSessionChange,
 }: WorkspaceDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
@@ -131,12 +135,21 @@ export default function WorkspaceDetail({
 
       {/* ── Tab Content ─────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-8 py-6">
-        {/* ── CHAT TAB ──────────────────────────────────────────────────────── */}
-        {activeTab === "chat" && (
-          <ChatPanel workspaceId={workspace.id} showToast={showToast} />
-        )}
+        {/* ── CHAT TAB
+              Use hidden instead of conditional rendering!
+              This keeps ChatPanel mounted so it never loses its state.
+              Think of it like display:none in CSS — the component stays
+              alive in memory, just invisible. ── */}
+        <div className={activeTab === "chat" ? "block h-full" : "hidden"}>
+          <ChatPanel
+            workspaceId={workspace.id}
+            showToast={showToast}
+            activeSessionId={activeSessionId}
+            onSessionChange={onSessionChange}
+          />
+        </div>
 
-        {/* ── DOCUMENTS TAB ─────────────────────────────────────────────────── */}
+        {/* ── DOCUMENTS TAB — conditional render is fine here ── */}
         {activeTab === "documents" && (
           <div className="flex flex-col gap-6">
             <div className="bg-gray-900 shadow rounded-lg border border-gray-700 overflow-hidden">

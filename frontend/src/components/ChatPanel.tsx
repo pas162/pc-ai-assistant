@@ -5,6 +5,7 @@ import {
   getChatSession,
   streamMessage,
   deleteChatSession,
+  updateChatSession,
 } from "../api";
 import type { ChatSession, ChatSessionDetail, ChatMessage } from "../api";
 import type { ToastType } from "../hooks/useToast";
@@ -21,9 +22,16 @@ import {
 interface ChatPanelProps {
   workspaceId: string;
   showToast: (message: string, type: ToastType) => void;
+  activeSessionId: string | null; // ← new: remembered session ID from App
+  onSessionChange: (workspaceId: string, sessionId: string) => void; // ← new: notify App
 }
 
-export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
+export default function ChatPanel({
+  workspaceId,
+  showToast,
+  activeSessionId,
+  onSessionChange,
+}: ChatPanelProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSessionDetail | null>(
     null,
@@ -33,14 +41,38 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [streamingText, setStreamingText] = useState("");
   const [sessionsOpen, setSessionsOpen] = useState(true); // ← add this
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingTextRef = useRef("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Store onSessionChange in a ref so it never triggers re-runs ──────────
+  // This is the standard React pattern for "stable callback" refs
+  const onSessionChangeRef = useRef(onSessionChange);
+  useEffect(() => {
+    onSessionChangeRef.current = onSessionChange;
+  }, [onSessionChange]);
+
+  // ── Store activeSessionId in a ref for the same reason ───────────────────
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
   useEffect(() => {
     streamingTextRef.current = streamingText;
   }, [streamingText]);
 
+  // Focus the input when rename mode starts
+  useEffect(() => {
+    if (renamingId) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [renamingId]);
+
+  // ── Load sessions when workspace changes ─────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const loadSessions = async () => {
@@ -49,18 +81,39 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
       setSessions([]);
       try {
         const data = await getChatSessions(workspaceId);
-        if (!cancelled) setSessions(data);
-      } catch {
+        if (!cancelled) {
+          setSessions(data);
+          if (data.length > 0) {
+            // Read from ref — doesn't add to deps array
+            const targetId = activeSessionIdRef.current ?? data[0].id;
+            const target = data.find((s) => s.id === targetId) ?? data[0];
+            try {
+              const detail = await getChatSession(target.id);
+              if (!cancelled) setActiveSession(detail);
+    } catch {
+              // silently ignore
+    }
+          }
+        }
+    } catch {
         // silently ignore
       } finally {
         if (!cancelled) setLoadingSessions(false);
-      }
-    };
+    }
+  };
     loadSessions();
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]);
+  }, [workspaceId]); // ← only workspaceId, ESLint is now happy
+
+  // ── Notify App when active session changes ────────────────────────────────
+  useEffect(() => {
+    if (activeSession?.id) {
+      // Read from ref — doesn't add to deps array
+      onSessionChangeRef.current(workspaceId, activeSession.id);
+    }
+  }, [activeSession?.id, workspaceId]); // ← ESLint is now happy
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,7 +129,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
     } catch {
       showToast("Failed to create chat session", "error");
     }
-  };
+        };
 
   const handleSelectSession = async (session: ChatSession) => {
     try {
@@ -103,6 +156,42 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
     }
   };
 
+  const handleStartRename = (e: React.MouseEvent, session: ChatSession) => {
+    e.stopPropagation();
+    setRenamingId(session.id);
+    setRenameValue(session.title);
+  };
+
+  const handleRenameSubmit = async (sessionId: string) => {
+    const trimmed = renameValue.trim();
+    if (!trimmed) {
+      setRenamingId(null);
+      return;
+    }
+    try {
+      await updateChatSession(sessionId, trimmed);
+      // Update the session title in local state
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s))
+  );
+      if (activeSession?.id === sessionId) {
+        setActiveSession((prev) => prev ? { ...prev, title: trimmed } : prev);
+}
+    } catch {
+      showToast("Failed to rename session", "error");
+    } finally {
+      setRenamingId(null);
+    }
+  };
+
+  const handleRenameKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    sessionId: string
+  ) => {
+    if (e.key === "Enter") handleRenameSubmit(sessionId);
+    if (e.key === "Escape") setRenamingId(null);
+  };
+
   const handleSend = async () => {
     if (!activeSession || !question.trim() || loading) return;
     const questionText = question.trim();
@@ -118,7 +207,7 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
     };
     setActiveSession((prev) =>
       prev ? { ...prev, messages: [...prev.messages, tempUserMessage] } : prev,
-    );
+  );
 
     try {
       await streamMessage(
@@ -152,6 +241,19 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
               ],
             };
           });
+
+          // ── If LLM generated a new title, update the session list ──────────
+          if (data.new_title && activeSession) {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === activeSession.id ? { ...s, title: data.new_title! } : s
+              )
+            );
+            setActiveSession((prev) =>
+              prev ? { ...prev, title: data.new_title! } : prev
+            );
+}
+
           setStreamingText("");
           setLoading(false);
         },
@@ -233,30 +335,49 @@ export default function ChatPanel({ workspaceId, showToast }: ChatPanelProps) {
                   sessions.map((session) => (
                     <div
                       key={session.id}
-                      onClick={() => handleSelectSession(session)}
+                      onClick={() => renamingId !== session.id && handleSelectSession(session)}
                       className={`group w-full flex items-center justify-between
                         px-3 py-2 rounded text-xs cursor-pointer transition-colors
-            ${
-              activeSession?.id === session.id
-                ? "bg-blue-600 text-white font-medium"
-                : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-            }`}
+                        ${activeSession?.id === session.id
+                          ? "bg-blue-600 text-white font-medium"
+                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                        }`}
                     >
-                      <span className="truncate flex-1 flex items-center gap-1">
-                        <MessageSquare
-                          size={12}
-                          className="shrink-0 text-blue-400"
+                      {renamingId === session.id ? (
+                        // ── RENAME MODE: show inline input ──────────────────────────────
+                        <input
+                          ref={renameInputRef}
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => handleRenameKeyDown(e, session.id)}
+                          onBlur={() => handleRenameSubmit(session.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-1 bg-gray-700 text-white text-xs px-1 py-0.5
+                                   rounded outline-none border border-blue-400 min-w-0"
                         />
-                        {session.title}
-                      </span>
-                      <button
-                        onClick={(e) => handleDeleteSession(e, session.id)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400
+                      ) : (
+                        // ── NORMAL MODE: show title, double-click to rename ─────────────
+                        <span
+                          className="truncate flex-1 flex items-center gap-1"
+                          onDoubleClick={(e) => handleStartRename(e, session)}
+                          title="Double-click to rename"
+                        >
+                          <MessageSquare size={12} className="shrink-0 text-blue-400" />
+                          {session.title}
+                        </span>
+                      )}
+
+                      {/* Only show delete button when NOT renaming */}
+                      {renamingId !== session.id && (
+                        <button
+                          onClick={(e) => handleDeleteSession(e, session.id)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400
                                    hover:text-red-400 ml-1 shrink-0 transition-opacity"
-                        title="Delete session"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                          title="Delete session"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   ))
                 )}

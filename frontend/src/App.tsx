@@ -4,8 +4,8 @@ import KnowledgeBase from "./components/KnowledgeBase";
 import WorkspaceDetail from "./components/WorkspaceDetail";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { Workspace } from "./api";
-import { Menu, X, Database } from "lucide-react";
 
 function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
@@ -14,17 +14,36 @@ function App() {
   const { toasts, showToast, removeToast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // ── Remember the last active session ID per workspace ──────────────────────
+  // Key: workspaceId, Value: sessionId
+  // This survives workspace switches because it lives in App, not ChatPanel
+  const [activeSessionIds, setActiveSessionIds] = useState<
+    Record<string, string>
+  >({});
+
+  const handleSelectWorkspace = (workspace: Workspace) => {
+    setSelectedWorkspace(workspace);
+  };
+
+  const handleSessionChange = (workspaceId: string, sessionId: string) => {
+    setActiveSessionIds((prev) => ({ ...prev, [workspaceId]: sessionId }));
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       {/* ── TOP NAVBAR ──────────────────────────────────────────── */}
       <div className="h-12 bg-gray-900 border-b border-gray-700 flex items-center px-4 gap-3 shrink-0">
         <button
           onClick={() => setSidebarOpen((prev) => !prev)}
-          className="text-gray-400 hover:text-white transition-colors px-2 py-1
-                     rounded hover:bg-gray-700 text-xs font-medium"
+          className="text-gray-400 hover:text-white transition-colors p-1.5
+                     rounded hover:bg-gray-700"
           title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
         >
-          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
+          {sidebarOpen ? (
+            <PanelLeftClose size={18} />
+          ) : (
+            <PanelLeftOpen size={18} />
+          )}
         </button>
 
         <span className="text-white font-bold text-sm">PC AI Assistant</span>
@@ -39,17 +58,13 @@ function App() {
               </span>
             </>
           ) : (
-            <span className="flex items-center gap-2">
-              <Database size={14} />
-              Knowledge Base
-            </span>
+            <span className="text-white font-medium">Knowledge Base</span>
           )}
         </span>
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT SIDEBAR */}
         <div
           className={`bg-gray-900 border-r border-gray-700 text-white 
                       flex flex-col transition-all duration-300 overflow-hidden
@@ -57,7 +72,7 @@ function App() {
         >
           <WorkspaceList
             selectedWorkspaceId={selectedWorkspace?.id ?? null}
-            onSelectWorkspace={setSelectedWorkspace}
+            onSelectWorkspace={handleSelectWorkspace}
             showToast={showToast}
           />
           <div className="p-3 border-t border-gray-700">
@@ -76,7 +91,6 @@ function App() {
           </div>
         </div>
 
-        {/* RIGHT CONTENT AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-gray-950">
           <div className="flex-1 overflow-y-auto">
             {selectedWorkspace === null ? (
@@ -85,6 +99,9 @@ function App() {
               <WorkspaceDetail
                 workspace={selectedWorkspace}
                 showToast={showToast}
+                // ── Pass the remembered session ID for this workspace ──
+                activeSessionId={activeSessionIds[selectedWorkspace.id] ?? null}
+                onSessionChange={handleSessionChange}
               />
             )}
           </div>

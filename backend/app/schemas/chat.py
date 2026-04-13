@@ -19,6 +19,13 @@ class SendMessageRequest(BaseModel):
     question: str
 
 
+class UpdateSessionRequest(BaseModel):
+    """
+    Body for renaming a chat session.
+    """
+    title: str
+
+
 # ─── Response Bodies ───────────────────────────────────────────────────────────
 
 class ChatMessageResponse(BaseModel):
@@ -32,8 +39,6 @@ class ChatMessageResponse(BaseModel):
 
     class Config:
         from_attributes = True  # allows building from SQLAlchemy model directly
-
-
 class ChatSessionResponse(BaseModel):
     """
     Represents a session (without messages) — used in list view.
@@ -42,7 +47,6 @@ class ChatSessionResponse(BaseModel):
     workspace_id: str
     title: str
     created_at: datetime
-
     class Config:
         from_attributes = True
 

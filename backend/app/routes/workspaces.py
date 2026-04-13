@@ -133,21 +133,28 @@ def link_document_to_workspace(
     workspace.documents.append(document)
     db.commit()
 
-    # Step 5: Load from cache and store in ChromaDB (INSTANT!)
+    # Step 5: Load from cache and store in ChromaDB
     try:
         cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
-
+        
+        print(f"[Attach] Looking for cache file: {cache_path}")
+        
         if not os.path.exists(cache_path):
-            raise ValueError("Cache file missing. Document may not have finished processing.")
+            raise ValueError(f"Cache file not found at {cache_path}. Document may still be processing.")
 
+        print(f"[Attach] Loading cache file...")
         with open(cache_path, "rb") as f:
             cached_data = pickle.load(f)
+
+        print(f"[Attach] Cache loaded. Chunks: {len(cached_data['chunks'])}, Embeddings: {len(cached_data['embeddings'])}")
+        
         stored = store_document_vectors(
             document_id=document_id,
             workspace_id=workspace_id,
             chunks=cached_data["chunks"],
             embeddings=cached_data["embeddings"]
         )
+        print(f"[Attach] Stored {stored} vectors in ChromaDB")
 
         return {
             "message": f"Successfully attached '{document.filename}' to '{workspace.name}'",
@@ -155,7 +162,8 @@ def link_document_to_workspace(
         }
 
     except Exception as e:
-        # If it fails, undo the database link so it doesn't get stuck
+        import traceback
+        print(f"[Attach] FULL ERROR:\n{traceback.format_exc()}")  # ← prints full stack trace
         workspace.documents.remove(document)
         db.commit()
         raise HTTPException(status_code=500, detail=f"Attach failed: {str(e)}")

@@ -177,6 +177,15 @@ export const deleteChatSession = async (sessionId: string): Promise<void> => {
   await api.delete(`/chat/sessions/${sessionId}`);
 };
 
+// PATCH /chat/sessions/:id — rename a session
+export const updateChatSession = async (
+  sessionId: string,
+  title: string,
+): Promise<ChatSession> => {
+  const response = await api.patch(`/chat/sessions/${sessionId}`, { title });
+  return response.data;
+};
+
 // POST /chat/sessions/:id/stream — stream a message response
 // Uses fetch (not axios) because axios doesn't support SSE streaming
 export const streamMessage = (
@@ -187,6 +196,7 @@ export const streamMessage = (
     user_message_id: string;
     assistant_message_id: string;
     chunks_used: number;
+    new_title: string | null;  // ← add this
   }) => void,
   onError: (error: string) => void,
 ): Promise<void> => {
@@ -223,6 +233,7 @@ export const streamMessage = (
                 user_message_id: parsed.user_message_id,
                 assistant_message_id: parsed.assistant_message_id,
                 chunks_used: parsed.chunks_used,
+                new_title: parsed.new_title,
               });
             } else if (parsed.type === "error") {
               onError(parsed.content);

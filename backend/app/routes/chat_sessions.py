@@ -13,6 +13,7 @@ from app.schemas.chat import (
     ChatSessionResponse,
     ChatSessionDetailResponse,
     ChatMessageResponse,
+    UpdateSessionRequest,
 )
 from app.core.llm_client import chat_with_llm, stream_chat_with_llm
 from app.services.retriever import retrieve_relevant_chunks, build_context
@@ -319,19 +320,14 @@ def stream_message(
     # Step 5 — Define the generator function that streams + saves to DB
     # This is a nested function so it can access session_id, request, db
     def generate():
-        full_answer = ""     # accumulate the complete answer as chunks arrive
-
+        full_answer = ""
         try:
-            # Stream chunks from LLM and forward each one to the frontend
             for text_chunk in stream_chat_with_llm(messages):
                 full_answer += text_chunk
-
-                # SSE format: "data: {json}\n\n"
-                # The double newline \n\n signals end of one SSE event
                 payload = json.dumps({"type": "chunk", "content": text_chunk})
                 yield f"data: {payload}\n\n"
 
-            # Streaming complete — save both messages to PostgreSQL
+            # Save both messages to PostgreSQL
             user_msg = ChatMessage(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
@@ -342,24 +338,64 @@ def stream_message(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
                 role="assistant",
-                content=full_answer      # the complete accumulated answer
+                content=full_answer
             )
             db.add(user_msg)
             db.add(assistant_msg)
             db.commit()
 
-            # Send final "done" event with both message IDs
-            # Frontend uses these IDs to update its local state
+            # ── Auto-title: only on the FIRST message ─────────────────────
+            # We know it's the first message if the title is still "New Chat"
+            # AND there were no previous messages in history
+            new_title = None
+            if session.title == "New Chat" and len(history) == 0:
+                try:
+                    print(f"  Auto-generating title for session {session_id}...")
+                    title_messages = [
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Create a chat session title for this question: "
+                                f'"{request.question}"\n\n'
+                                f"Rules:\n"
+                                f"- Maximum 5 words\n"
+                                f"- No punctuation\n"
+                                f"- No quotes\n"
+                                f"- Reply with ONLY the title, nothing else\n"
+                                f"- Do NOT answer the question\n\n"
+                                f"Examples:\n"
+                                f"Question: What is the revenue for Q3?\n"
+                                f"Title: Q3 Revenue Summary\n\n"
+                                f"Question: Can you list the agenda of this doc?\n"
+                                f"Title: Document Agenda Overview\n\n"
+                                f"Now generate the title:"
+                            )
+                        }
+                    ]
+                    generated_title = chat_with_llm(title_messages).strip()
+
+                    # Safety: truncate if LLM ignores the 5-word instruction
+                    if len(generated_title) > 60:
+                        generated_title = generated_title[:60].strip()
+
+                    session.title = generated_title
+                    db.commit()
+                    new_title = generated_title
+                    print(f"  Auto-title set to: {new_title}")
+                except Exception as e:
+                    print(f"  Auto-title failed (non-critical): {e}")
+
+            # Send final "done" event — include new_title so frontend can update
             done_payload = json.dumps({
                 "type": "done",
                 "user_message_id": user_msg.id,
                 "assistant_message_id": assistant_msg.id,
-                "chunks_used": len(chunks)
+                "chunks_used": len(chunks),
+                "new_title": new_title,  # ← None if not first message
             })
             yield f"data: {done_payload}\n\n"
 
         except Exception as e:
-            # Send error event so frontend knows something went wrong
             error_payload = json.dumps({"type": "error", "content": str(e)})
             yield f"data: {error_payload}\n\n"
 
@@ -374,3 +410,31 @@ def stream_message(
             "X-Accel-Buffering": "no"
         }
     )
+
+
+# ─── Endpoint 7: Rename a chat session ────────────────────────────────────────
+
+@router.patch("/{session_id}", response_model=ChatSessionResponse)
+def rename_session(
+    session_id: str,
+    request: UpdateSessionRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Rename a chat session title.
+    Called by:
+    - User manually renames via double-click in the UI
+    - Auto-title after first message (called internally by stream endpoint)
+    """
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    session.title = request.title.strip() or "New Chat"
+    db.commit()
+    db.refresh(session)
+
+    print(f"Renamed session {session_id} to: {session.title}")
+    return session
