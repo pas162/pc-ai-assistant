@@ -85,6 +85,11 @@ Chat Sessions belong to a Workspace and contain many Messages.
    - `content` (Text)
    - `created_at` (DateTime)
 
+6. **`settings`**
+   - `key` (String, Primary Key) e.g. "llm_api_token", "llm_api_base_url"
+   - `value` (String, nullable)
+   - `updated_at` (DateTime)
+
 > **Java/Hibernate Equivalent:**
 > `ChatSession` is a `@OneToMany` parent. `ChatMessage` is the `@ManyToOne` child.
 > Loading a session with `messages` is like an `@OneToMany(fetch = FetchType.EAGER)`.

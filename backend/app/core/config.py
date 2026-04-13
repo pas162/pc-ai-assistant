@@ -4,14 +4,10 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     """
-    Reads values from .env file automatically.
-    Field names must match the variable names in .env exactly.
+    Infrastructure settings only.
+    LLM settings (token, base URL) are stored in the database
+    and managed via the Settings UI.
     """
-
-    # LLM API
-    llm_api_base_url: str = "http://10.210.106.4:8080"
-    llm_api_token: str = ""
-
     # PostgreSQL
     postgres_user: str = "admin"
     postgres_password: str = "changeme"
@@ -22,15 +18,8 @@ class Settings(BaseSettings):
     backend_port: int = 8000
 
     class Config:
-        env_file = "../.env"        # tells Pydantic where to find the .env file
-        extra = "ignore"         # ignore unknown variables in .env
-
-
+        env_file = "../.env"
+        extra = "ignore"
 @lru_cache()
 def get_settings() -> Settings:
-    """
-    Returns the settings object.
-    lru_cache means it only reads the .env file ONCE,
-    then reuses the same object.
-    """
     return Settings()

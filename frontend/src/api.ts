@@ -268,3 +268,26 @@ export const fetchAvailableModels = async (): Promise<string[]> => {
   const response = await axios.get(`${api.defaults.baseURL}/models`);
   return response.data.models;
 };
+
+// ─── Settings API calls ────────────────────────────────
+
+export interface Setting {
+  key: string;
+  value: string | null;
+  updated_at: string;
+}
+
+// GET /settings — fetch all settings
+export const getSettings = async (): Promise<Setting[]> => {
+  const response = await api.get("/settings");
+  return response.data;
+};
+
+// PUT /settings/:key — insert or update a setting
+export const upsertSetting = async (
+  key: string,
+  value: string,
+): Promise<Setting> => {
+  const response = await api.put(`/settings/${key}`, { value });
+  return response.data;
+};

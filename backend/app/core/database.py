@@ -34,3 +34,12 @@ def get_db():
         yield db        # give the session to the route handler
     finally:
         db.close()      # always close, even if an error occurs
+
+
+def get_db_direct():
+    """
+    Returns a plain DB session for use outside of FastAPI request context.
+    Caller is responsible for calling db.close().
+    Used by llm_client.py to read settings without a request context.
+    """
+    return SessionLocal()

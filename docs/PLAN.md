@@ -57,7 +57,7 @@ An internal AI platform with:
 
 ### Sprint 6 — Polish (Steps 23-26)
 
-- [ ] Step 23: Settings UI (API token management)
+- [x] Step 23: Settings UI (API token management) ✅ COMPLETE
 - [ ] Step 24: Error handling + logging
 - [ ] Step 25: Docker Compose (run everything together)
 - [ ] Step 26: Final testing + documentation
@@ -97,3 +97,14 @@ An internal AI platform with:
 - [x] Last active session remembered per workspace (survives workspace switching)
 - [x] Tab switching (Chat ↔ Documents) preserves chat state using CSS hidden
 - [x] Model selector combobox in chat input area (fetched from LLM API, per session)
+
+### Settings & Configuration (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Settings table in PostgreSQL (key-value store)
+- [x] GET /settings and PUT /settings/{key} endpoints
+- [x] Settings UI panel (accessible from navbar top-right)
+- [x] LLM API token and base URL managed via Settings UI
+- [x] LLM config moved from .env to database (DB takes priority, .env is fallback)
+- [x] seed_settings.py seeds default values on app startup
+- [x] Actionable error message when token is not configured
+- [x] .env reduced to infrastructure-only (DB credentials, ports)

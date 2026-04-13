@@ -17,6 +17,7 @@ class SendMessageRequest(BaseModel):
     Body for sending a message in an existing session.
     """
     question: str
+    model: str = "databricks-claude-sonnet-4-6"
 
 
 class UpdateSessionRequest(BaseModel):

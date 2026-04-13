@@ -2,9 +2,14 @@ import { useState } from "react";
 import WorkspaceList from "./components/WorkspaceList";
 import KnowledgeBase from "./components/KnowledgeBase";
 import WorkspaceDetail from "./components/WorkspaceDetail";
+import Settings from "./components/Settings";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings as SettingsIcon,
+} from "lucide-react";
 import type { Workspace } from "./api";
 
 function App() {
@@ -13,21 +18,33 @@ function App() {
   );
   const { toasts, showToast, removeToast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showSettings, setShowSettings] = useState(false); // ← new
 
-  // ── Remember the last active session ID per workspace ──────────────────────
-  // Key: workspaceId, Value: sessionId
-  // This survives workspace switches because it lives in App, not ChatPanel
   const [activeSessionIds, setActiveSessionIds] = useState<
     Record<string, string>
   >({});
 
   const handleSelectWorkspace = (workspace: Workspace) => {
     setSelectedWorkspace(workspace);
+    setShowSettings(false); // ← close settings when selecting a workspace
   };
 
   const handleSessionChange = (workspaceId: string, sessionId: string) => {
     setActiveSessionIds((prev) => ({ ...prev, [workspaceId]: sessionId }));
   };
+
+  // Determines what the breadcrumb shows in the navbar
+  const breadcrumb = showSettings ? (
+    <span className="text-white font-medium">Settings</span>
+  ) : selectedWorkspace ? (
+    <>
+      <span className="text-gray-500">Workspace</span>
+      <span className="text-gray-500"> › </span>
+      <span className="text-white font-medium">{selectedWorkspace.name}</span>
+    </>
+  ) : (
+    <span className="text-white font-medium">Knowledge Base</span>
+  );
 
   return (
     <div className="flex flex-col h-screen bg-gray-950">
@@ -48,19 +65,28 @@ function App() {
 
         <span className="text-white font-bold text-sm">PC AI Assistant</span>
         <span className="text-gray-600">|</span>
-        <span className="text-gray-300 text-sm">
-          {selectedWorkspace ? (
-            <>
-              <span className="text-gray-500">Workspace</span>
-              <span className="text-gray-500"> › </span>
-              <span className="text-white font-medium">
-                {selectedWorkspace.name}
-              </span>
-            </>
-          ) : (
-            <span className="text-white font-medium">Knowledge Base</span>
-          )}
-        </span>
+        <span className="text-gray-300 text-sm">{breadcrumb}</span>
+
+        {/* ── Settings button — pushed to the right ── */}
+        <div className="ml-auto">
+          <button
+            onClick={() => {
+              setShowSettings((prev) => !prev);
+              setSelectedWorkspace(null); // deselect workspace when opening settings
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm
+                        transition-colors
+                        ${
+                          showSettings
+                            ? "bg-blue-600 text-white"
+                            : "text-gray-400 hover:text-white hover:bg-gray-700"
+                        }`}
+            title="Settings"
+          >
+            <SettingsIcon size={16} />
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────── */}
@@ -77,11 +103,14 @@ function App() {
           />
           <div className="p-3 border-t border-gray-700">
             <button
-              onClick={() => setSelectedWorkspace(null)}
+              onClick={() => {
+                setSelectedWorkspace(null);
+                setShowSettings(false); // ← close settings when clicking Knowledge Base
+              }}
               className={`w-full text-left px-3 py-2 rounded text-sm 
                 font-medium transition-colors
                 ${
-                  selectedWorkspace === null
+                  selectedWorkspace === null && !showSettings
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white hover:bg-gray-800"
                 }`}
@@ -93,13 +122,15 @@ function App() {
 
         <div className="flex-1 flex flex-col overflow-hidden bg-gray-950">
           <div className="flex-1 overflow-y-auto">
-            {selectedWorkspace === null ? (
+            {/* ── Three possible views ── */}
+            {showSettings ? (
+              <Settings showToast={showToast} />
+            ) : selectedWorkspace === null ? (
               <KnowledgeBase showToast={showToast} />
             ) : (
               <WorkspaceDetail
                 workspace={selectedWorkspace}
                 showToast={showToast}
-                // ── Pass the remembered session ID for this workspace ──
                 activeSessionId={activeSessionIds[selectedWorkspace.id] ?? null}
                 onSessionChange={handleSessionChange}
               />

@@ -76,6 +76,14 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Preserve chat state when switching tabs (CSS hidden)
 - [x] Model selector combobox — lists all available LLM models, default is databricks-claude-sonnet-4-6
 - [x] GET /models proxy endpoint — fetches model list from LLM API server-side (token never exposed to browser)
+- [x] Settings UI panel (navbar top-right, gear icon)
+- [x] LLM API token management via Settings UI
+- [x] LLM API base URL management via Settings UI
+- [x] Settings stored in PostgreSQL settings table (key-value)
+- [x] DB settings take priority over .env — no server restart needed
+- [x] Default settings seeded on app startup (seed_settings.py)
+- [x] Actionable error toast when LLM token is not configured
+- [x] .env reduced to infrastructure-only settings
 
 ## In Progress
 
@@ -92,19 +100,22 @@ Workspaces, and chat with an AI about the attached documents.
 
 ## Important Technical Decisions
 
-| Decision                 | Choice                         | Reason                                                   |
-| ------------------------ | ------------------------------ | -------------------------------------------------------- |
-| Document ownership       | Many-to-Many                   | Upload once, use in many workspaces                      |
-| Embedding model          | Local sentence-transformers    | LLM API doesn't support embeddings                       |
-| UUID vs Integer IDs      | UUID                           | Better for distributed systems                           |
-| File naming              | {uuid}\_{filename}             | Prevents name collisions                                 |
-| Chat persistence         | PostgreSQL                     | Full history replay to LLM                               |
-| Processing trigger       | FastAPI BackgroundTasks        | Returns upload response instantly                        |
-| Embedding storage        | .pkl cache file on disk        | Attach to workspace is instant, no recompute             |
-| Progress tracking        | PostgreSQL progress column     | Simple polling, no WebSockets needed                     |
-| Icon library             | lucide-react                   | Consistent SVG icons, no emoji rendering bugs            |
-| ChromaDB batching        | 5000 vectors per upsert        | ChromaDB hard limit is 5461                              |
-| Session title            | LLM few-shot auto-generation   | Better UX than manual naming every session               |
-| Chat state on tab switch | CSS hidden (not unmount)       | Preserves session without re-fetching                    |
-| Session memory           | Record<wsId, sessionId> in App | Survives workspace switching                             |
-| Model selection          | Backend proxy GET /models      | Bearer token stays server-side, never exposed in browser |
+| Decision                 | Choice                          | Reason                                                            |
+| ------------------------ | ------------------------------- | ----------------------------------------------------------------- |
+| Document ownership       | Many-to-Many                    | Upload once, use in many workspaces                               |
+| Embedding model          | Local sentence-transformers     | LLM API doesn't support embeddings                                |
+| UUID vs Integer IDs      | UUID                            | Better for distributed systems                                    |
+| File naming              | {uuid}\_{filename}              | Prevents name collisions                                          |
+| Chat persistence         | PostgreSQL                      | Full history replay to LLM                                        |
+| Processing trigger       | FastAPI BackgroundTasks         | Returns upload response instantly                                 |
+| Embedding storage        | .pkl cache file on disk         | Attach to workspace is instant, no recompute                      |
+| Progress tracking        | PostgreSQL progress column      | Simple polling, no WebSockets needed                              |
+| Icon library             | lucide-react                    | Consistent SVG icons, no emoji rendering bugs                     |
+| ChromaDB batching        | 5000 vectors per upsert         | ChromaDB hard limit is 5461                                       |
+| Session title            | LLM few-shot auto-generation    | Better UX than manual naming every session                        |
+| Chat state on tab switch | CSS hidden (not unmount)        | Preserves session without re-fetching                             |
+| Session memory           | Record<wsId, sessionId> in App  | Survives workspace switching                                      |
+| Model selection          | Backend proxy GET /models       | Bearer token stays server-side, never exposed in browser          |
+| LLM config storage       | PostgreSQL settings table       | Team members update token via UI, no server file access needed    |
+| .env scope               | Infrastructure only (DB, ports) | LLM settings in DB so team can self-serve without touching server |
+| Settings seeding         | seed_settings.py on startup     | Safe to run every boot — never overwrites existing values         |

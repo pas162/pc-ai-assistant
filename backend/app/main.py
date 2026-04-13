@@ -7,9 +7,12 @@ from app.routes import documents
 from app.routes import chat
 from app.routes import chat_sessions
 from app.routes import models
+from app.routes import settings
+from app.core.database import get_db_direct
+from app.core.seed_settings import seed_default_settings
 
 # Get our settings
-settings = get_settings()
+config = get_settings()
 
 # Create the FastAPI application
 app = FastAPI(
@@ -31,6 +34,19 @@ app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(chat_sessions.router)
 app.include_router(models.router, prefix="/models", tags=["models"])
+app.include_router(settings.router, prefix="/settings", tags=["settings"])
+
+@app.on_event("startup")
+def on_startup():
+    """
+    Runs once when the FastAPI server starts.
+    Seeds default settings into the DB if they don't exist yet.
+    """
+    db = get_db_direct()
+    try:
+        seed_default_settings(db)
+    finally:
+        db.close()
 
 @app.get("/health")
 def health_check():

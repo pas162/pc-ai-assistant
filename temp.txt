@@ -1,0 +1,15 @@
+# LLM API
+LLM_API_BASE_URL=http://10.210.106.4:8080
+LLM_API_TOKEN=sk-c669cab44b6d482096ff49d78edffe46
+
+# PostgreSQL Database
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=changeme
+POSTGRES_DB=pc_ai_assistant
+DATABASE_URL=postgresql://admin:changeme@127.0.0.1:5432/pc_ai_assistant
+
+# Backend
+BACKEND_PORT=8000
+
+# Frontend
+VITE_API_BASE_URL=http://localhost:8000

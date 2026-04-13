@@ -25,8 +25,8 @@ const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
 interface ChatPanelProps {
   workspaceId: string;
   showToast: (message: string, type: ToastType) => void;
-  activeSessionId: string | null; // ← new: remembered session ID from App
-  onSessionChange: (workspaceId: string, sessionId: string) => void; // ← new: notify App
+  activeSessionId: string | null;
+  onSessionChange: (workspaceId: string, sessionId: string) => void;
 }
 
 export default function ChatPanel({
@@ -43,12 +43,12 @@ export default function ChatPanel({
   const [loading, setLoading] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [streamingText, setStreamingText] = useState("");
-  const [sessionsOpen, setSessionsOpen] = useState(true); // ← add this
+  const [sessionsOpen, setSessionsOpen] = useState(true);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [availableModels, setAvailableModels] = useState<string[]>([
     DEFAULT_MODEL,
-  ]); // ✅ seed with default
+  ]);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [modelsLoading, setModelsLoading] = useState(true);
 
@@ -56,23 +56,20 @@ export default function ChatPanel({
   const streamingTextRef = useRef("");
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Store onSessionChange in a ref so it never triggers re-runs ──────────
-  // This is the standard React pattern for "stable callback" refs
   const onSessionChangeRef = useRef(onSessionChange);
   useEffect(() => {
     onSessionChangeRef.current = onSessionChange;
   }, [onSessionChange]);
 
-  // ── Store activeSessionId in a ref for the same reason ───────────────────
   const activeSessionIdRef = useRef(activeSessionId);
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
+
   useEffect(() => {
     streamingTextRef.current = streamingText;
   }, [streamingText]);
 
-  // Focus the input when rename mode starts
   useEffect(() => {
     if (renamingId) {
       renameInputRef.current?.focus();
@@ -92,7 +89,6 @@ export default function ChatPanel({
         if (!cancelled) {
           setSessions(data);
           if (data.length > 0) {
-            // Read from ref — doesn't add to deps array
             const targetId = activeSessionIdRef.current ?? data[0].id;
             const target = data.find((s) => s.id === targetId) ?? data[0];
             try {
@@ -113,11 +109,9 @@ export default function ChatPanel({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId]); // ← only workspaceId, ESLint is now happy
+  }, [workspaceId]);
 
-  // Fetch models once when the component mounts.
-  // We intentionally use [] — this should only run once.
-  // selectedModel is write-only here (setAvailableModels), not a dependency.
+  // ── Fetch models once on mount ────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const loadModels = async () => {
@@ -137,7 +131,6 @@ export default function ChatPanel({
         if (!cancelled) setModelsLoading(false);
       }
     };
-
     loadModels();
     return () => {
       cancelled = true;
@@ -147,16 +140,15 @@ export default function ChatPanel({
   // ── Notify App when active session changes ────────────────────────────────
   useEffect(() => {
     if (activeSession?.id) {
-      // Read from ref — doesn't add to deps array
       onSessionChangeRef.current(workspaceId, activeSession.id);
     }
-  }, [activeSession?.id, workspaceId]); // ← ESLint is now happy
+  }, [activeSession?.id, workspaceId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeSession?.messages, streamingText]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleNewSession = async () => {
     try {
       const newSession = await createChatSession(workspaceId, "New Chat");
@@ -207,7 +199,6 @@ export default function ChatPanel({
     }
     try {
       await updateChatSession(sessionId, trimmed);
-      // Update the session title in local state
       setSessions((prev) =>
         prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
       );
@@ -307,7 +298,15 @@ export default function ChatPanel({
           });
           setStreamingText("");
           setLoading(false);
-          showToast(`Streaming failed: ${error}`, "error");
+
+          // ── Actionable error message for token/config issues ──
+          const isTokenError = error.toLowerCase().includes("api token");
+          showToast(
+            isTokenError
+              ? "LLM API token not set. Please open Settings and enter your API token."
+              : `Streaming failed: ${error}`,
+            "error",
+          );
         },
       );
     } catch {
@@ -331,7 +330,7 @@ export default function ChatPanel({
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
       <div className="flex gap-4 h-full">
@@ -341,7 +340,6 @@ export default function ChatPanel({
           ${sessionsOpen ? "w-48" : "w-8"}`}
         >
           {sessionsOpen ? (
-            // ── EXPANDED ──────────────────────────────────────
             <>
               <div className="flex items-center gap-1">
                 <button
@@ -351,7 +349,6 @@ export default function ChatPanel({
                 >
                   + New Chat
                 </button>
-                {/* Collapse button */}
                 <button
                   onClick={() => setSessionsOpen(false)}
                   className="text-gray-500 hover:text-gray-300 p-2 rounded
@@ -388,7 +385,6 @@ export default function ChatPanel({
                         }`}
                     >
                       {renamingId === session.id ? (
-                        // ── RENAME MODE: show inline input ──────────────────────────────
                         <input
                           ref={renameInputRef}
                           value={renameValue}
@@ -397,10 +393,9 @@ export default function ChatPanel({
                           onBlur={() => handleRenameSubmit(session.id)}
                           onClick={(e) => e.stopPropagation()}
                           className="flex-1 bg-gray-700 text-white text-xs px-1 py-0.5
-                                   rounded outline-none border border-blue-400 min-w-0"
+                                     rounded outline-none border border-blue-400 min-w-0"
                         />
                       ) : (
-                        // ── NORMAL MODE: show title, double-click to rename ─────────────
                         <span
                           className="truncate flex-1 flex items-center gap-1"
                           onDoubleClick={(e) => handleStartRename(e, session)}
@@ -414,12 +409,11 @@ export default function ChatPanel({
                         </span>
                       )}
 
-                      {/* Only show delete button when NOT renaming */}
                       {renamingId !== session.id && (
                         <button
                           onClick={(e) => handleDeleteSession(e, session.id)}
                           className="opacity-0 group-hover:opacity-100 text-gray-400
-                                   hover:text-red-400 ml-1 shrink-0 transition-opacity"
+                                     hover:text-red-400 ml-1 shrink-0 transition-opacity"
                           title="Delete session"
                         >
                           <Trash2 size={14} />
@@ -431,7 +425,6 @@ export default function ChatPanel({
               </div>
             </>
           ) : (
-            // ── COLLAPSED — show only expand button ───────────
             <button
               onClick={() => setSessionsOpen(true)}
               className="text-gray-500 hover:text-gray-300 p-2 rounded
@@ -443,16 +436,13 @@ export default function ChatPanel({
           )}
         </div>
 
-        {/* ── RIGHT: Chat Window ──────────────────────────────────────────── */}
+        {/* ── RIGHT: Chat Window ───────────────────────────────── */}
         <div
           className="flex-1 flex flex-col border border-gray-700 rounded-lg
-                        bg-gray-900 overflow-hidden"
+                     bg-gray-900 overflow-hidden"
         >
           {!activeSession ? (
-            <div
-              className="flex-1 flex items-center justify-center
-                            text-gray-600 text-sm"
-            >
+            <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
               Select a chat or create a new one
             </div>
           ) : (
@@ -460,10 +450,7 @@ export default function ChatPanel({
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                 {activeSession.messages.length === 0 ? (
-                  <div
-                    className="flex-1 flex items-center justify-center
-                                  text-gray-600 text-sm"
-                  >
+                  <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
                     Ask a question about your documents
                   </div>
                 ) : (
@@ -472,7 +459,6 @@ export default function ChatPanel({
                   ))
                 )}
 
-                {/* Streaming bubble */}
                 {streamingText && (
                   <MessageBubble
                     message={{
@@ -484,13 +470,9 @@ export default function ChatPanel({
                   />
                 )}
 
-                {/* Thinking indicator */}
                 {loading && !streamingText && (
                   <div className="flex gap-2 items-center text-gray-500 text-sm">
-                    <div
-                      className="w-6 h-6 rounded-full bg-gray-700
-                                    flex items-center justify-center text-xs"
-                    >
+                    <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs">
                       <Bot size={14} className="text-green-300" />
                     </div>
                     <span className="animate-pulse">Thinking...</span>
@@ -499,9 +481,8 @@ export default function ChatPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Model selector + input area — bottom of chat panel */}
+              {/* Model selector + input area */}
               <div className="border-t border-gray-700 p-4 space-y-2">
-                {/* Model Selector — compact, left-aligned, no label */}
                 <div className="flex">
                   <select
                     value={selectedModel}
@@ -524,7 +505,6 @@ export default function ChatPanel({
                   </select>
                 </div>
 
-                {/* Input area */}
                 <div className="flex gap-2">
                   <textarea
                     value={question}
@@ -568,10 +548,9 @@ export default function ChatPanel({
   );
 }
 
-// ── Message Bubble ─────────────────────────────────────────────────────────────
+// ── Message Bubble ────────────────────────────────────────────────────────────
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
-
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -579,7 +558,6 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
   return (
     <div className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-      {/* Avatar */}
       <div
         className="w-6 h-6 rounded-full flex items-center justify-center
                       text-xs shrink-0 mt-1 bg-gray-700"
@@ -591,17 +569,15 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         )}
       </div>
 
-      {/* Bubble + timestamp */}
       <div
-        className={`flex flex-col gap-1 max-w-[80%]
-        ${isUser ? "items-end" : "items-start"}`}
+        className={`flex flex-col gap-1 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}
       >
         <div
           className={`px-3 py-2 rounded-lg text-sm whitespace-pre-wrap
             ${
               isUser
                 ? "bg-blue-600 text-white rounded-tr-none"
-                : "bg-gray-800 text-gray-200 rounded-tl-none" // ← dark assistant bubble
+                : "bg-gray-800 text-gray-200 rounded-tl-none"
             }`}
         >
           {message.content}
