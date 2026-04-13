@@ -5,7 +5,8 @@
 - **Backend:** Python 3.14 + FastAPI (port 8000)
 - **Frontend:** React + TypeScript + Tailwind CSS (port 3000)
 - **Database:** PostgreSQL (port 5432) + ChromaDB (port 8001)
-- **LLM API:** http://10.210.106.4:8080 (model: databricks-gemini-3-1-flash-lite)
+- **LLM API:** http://10.210.106.4:8080
+- **Default model:** databricks-claude-sonnet-4-6
 - **HTTP Client:** httpx (for calling LLM API)
 
 ## Key Python Packages

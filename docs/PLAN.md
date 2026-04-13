@@ -96,3 +96,4 @@ An internal AI platform with:
 - [x] PATCH /chat/sessions/{id} endpoint for renaming
 - [x] Last active session remembered per workspace (survives workspace switching)
 - [x] Tab switching (Chat ↔ Documents) preserves chat state using CSS hidden
+- [x] Model selector combobox in chat input area (fetched from LLM API, per session)

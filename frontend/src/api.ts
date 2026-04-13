@@ -191,19 +191,20 @@ export const updateChatSession = async (
 export const streamMessage = (
   sessionId: string,
   question: string,
+  model: string,
   onChunk: (text: string) => void,
   onDone: (data: {
     user_message_id: string;
     assistant_message_id: string;
     chunks_used: number;
-    new_title: string | null;  // ← add this
+    new_title: string | null; // ← add this
   }) => void,
   onError: (error: string) => void,
 ): Promise<void> => {
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, model }),
   }).then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status}`);
@@ -254,9 +255,16 @@ export const streamMessage = (
 export const sendMessage = async (
   sessionId: string,
   question: string,
+  model: string,
 ): Promise<SendMessageResponse> => {
   const response = await api.post(`/chat/sessions/${sessionId}/message`, {
     question,
+    model,
   });
   return response.data;
+};
+
+export const fetchAvailableModels = async (): Promise<string[]> => {
+  const response = await axios.get(`${api.defaults.baseURL}/models`);
+  return response.data.models;
 };

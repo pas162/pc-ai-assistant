@@ -18,6 +18,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { fetchAvailableModels } from "../api";
+
+const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
 
 interface ChatPanelProps {
   workspaceId: string;
@@ -43,6 +46,11 @@ export default function ChatPanel({
   const [sessionsOpen, setSessionsOpen] = useState(true); // ← add this
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [availableModels, setAvailableModels] = useState<string[]>([
+    DEFAULT_MODEL,
+  ]); // ✅ seed with default
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
+  const [modelsLoading, setModelsLoading] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingTextRef = useRef("");
@@ -90,22 +98,51 @@ export default function ChatPanel({
             try {
               const detail = await getChatSession(target.id);
               if (!cancelled) setActiveSession(detail);
-    } catch {
+            } catch {
               // silently ignore
-    }
+            }
           }
         }
-    } catch {
+      } catch {
         // silently ignore
       } finally {
         if (!cancelled) setLoadingSessions(false);
-    }
-  };
+      }
+    };
     loadSessions();
     return () => {
       cancelled = true;
     };
   }, [workspaceId]); // ← only workspaceId, ESLint is now happy
+
+  // Fetch models once when the component mounts.
+  // We intentionally use [] — this should only run once.
+  // selectedModel is write-only here (setAvailableModels), not a dependency.
+  useEffect(() => {
+    let cancelled = false;
+    const loadModels = async () => {
+      try {
+        setModelsLoading(true);
+        const models = await fetchAvailableModels();
+        if (!cancelled) {
+          const merged = Array.from(new Set([DEFAULT_MODEL, ...models]));
+          setAvailableModels(merged);
+        }
+      } catch {
+        if (!cancelled) {
+          console.warn("Could not fetch model list, using default.");
+          setAvailableModels([DEFAULT_MODEL]);
+        }
+      } finally {
+        if (!cancelled) setModelsLoading(false);
+      }
+    };
+
+    loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ── Notify App when active session changes ────────────────────────────────
   useEffect(() => {
@@ -129,7 +166,7 @@ export default function ChatPanel({
     } catch {
       showToast("Failed to create chat session", "error");
     }
-        };
+  };
 
   const handleSelectSession = async (session: ChatSession) => {
     try {
@@ -172,11 +209,11 @@ export default function ChatPanel({
       await updateChatSession(sessionId, trimmed);
       // Update the session title in local state
       setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s))
-  );
+        prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
+      );
       if (activeSession?.id === sessionId) {
-        setActiveSession((prev) => prev ? { ...prev, title: trimmed } : prev);
-}
+        setActiveSession((prev) => (prev ? { ...prev, title: trimmed } : prev));
+      }
     } catch {
       showToast("Failed to rename session", "error");
     } finally {
@@ -186,7 +223,7 @@ export default function ChatPanel({
 
   const handleRenameKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
-    sessionId: string
+    sessionId: string,
   ) => {
     if (e.key === "Enter") handleRenameSubmit(sessionId);
     if (e.key === "Escape") setRenamingId(null);
@@ -205,15 +242,17 @@ export default function ChatPanel({
       content: questionText,
       created_at: new Date().toISOString(),
     };
+
     setActiveSession((prev) =>
       prev ? { ...prev, messages: [...prev.messages, tempUserMessage] } : prev,
-  );
+    );
 
     try {
       await streamMessage(
         activeSession.id,
         questionText,
-        (chunk) => {
+        selectedModel,
+        (chunk: string) => {
           setStreamingText((prev) => prev + chunk);
         },
         (data) => {
@@ -242,22 +281,23 @@ export default function ChatPanel({
             };
           });
 
-          // ── If LLM generated a new title, update the session list ──────────
           if (data.new_title && activeSession) {
             setSessions((prev) =>
               prev.map((s) =>
-                s.id === activeSession.id ? { ...s, title: data.new_title! } : s
-              )
+                s.id === activeSession.id
+                  ? { ...s, title: data.new_title! }
+                  : s,
+              ),
             );
             setActiveSession((prev) =>
-              prev ? { ...prev, title: data.new_title! } : prev
+              prev ? { ...prev, title: data.new_title! } : prev,
             );
-}
+          }
 
           setStreamingText("");
           setLoading(false);
         },
-        (error) => {
+        (error: string) => {
           setActiveSession((prev) => {
             if (!prev) return prev;
             return {
@@ -335,12 +375,16 @@ export default function ChatPanel({
                   sessions.map((session) => (
                     <div
                       key={session.id}
-                      onClick={() => renamingId !== session.id && handleSelectSession(session)}
+                      onClick={() =>
+                        renamingId !== session.id &&
+                        handleSelectSession(session)
+                      }
                       className={`group w-full flex items-center justify-between
                         px-3 py-2 rounded text-xs cursor-pointer transition-colors
-                        ${activeSession?.id === session.id
-                          ? "bg-blue-600 text-white font-medium"
-                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                        ${
+                          activeSession?.id === session.id
+                            ? "bg-blue-600 text-white font-medium"
+                            : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
                         }`}
                     >
                       {renamingId === session.id ? (
@@ -362,7 +406,10 @@ export default function ChatPanel({
                           onDoubleClick={(e) => handleStartRename(e, session)}
                           title="Double-click to rename"
                         >
-                          <MessageSquare size={12} className="shrink-0 text-blue-400" />
+                          <MessageSquare
+                            size={12}
+                            className="shrink-0 text-blue-400"
+                          />
                           {session.title}
                         </span>
                       )}
@@ -452,40 +499,66 @@ export default function ChatPanel({
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input area */}
-              <div className="border-t border-gray-700 p-3 flex gap-2">
-                <textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask a question... (Enter to send, Shift+Enter for new line)"
-                  rows={2}
-                  disabled={loading}
-                  className="flex-1 resize-none bg-gray-800 border border-gray-600
-                             rounded px-3 py-2 text-sm text-gray-200
-                             placeholder-gray-500 focus:outline-none
-                             focus:ring-2 focus:ring-blue-500
-                             disabled:opacity-50 transition-colors"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={loading || !question.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700
-                             disabled:text-gray-500 text-white px-4 py-2 rounded
-                             text-sm font-medium transition-colors
-                             flex items-center gap-2"
-                >
-                  {loading ? (
-                    <span
-                      className="w-4 h-4 border-2 border-white
-                                     border-t-transparent rounded-full animate-spin"
-                    />
-                  ) : (
-                    <>
-                      Send <Send size={14} />
-                    </>
-                  )}
-                </button>
+              {/* Model selector + input area — bottom of chat panel */}
+              <div className="border-t border-gray-700 p-4 space-y-2">
+                {/* Model Selector — compact, left-aligned, no label */}
+                <div className="flex">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    disabled={modelsLoading}
+                    className="bg-gray-800 text-gray-400 text-xs border border-gray-700
+                               rounded px-2 py-1 focus:outline-none focus:ring-1
+                               focus:ring-blue-500 disabled:opacity-50 disabled:cursor-wait
+                               max-w-55"
+                  >
+                    {modelsLoading ? (
+                      <option>Loading...</option>
+                    ) : (
+                      availableModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                {/* Input area */}
+                <div className="flex gap-2">
+                  <textarea
+                    value={question}
+                    onChange={(e) => setQuestion(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask a question... (Enter to send, Shift+Enter for new line)"
+                    rows={2}
+                    disabled={loading}
+                    className="flex-1 resize-none bg-gray-800 border border-gray-600
+                               rounded px-3 py-2 text-sm text-gray-200
+                               placeholder-gray-500 focus:outline-none
+                               focus:ring-2 focus:ring-blue-500
+                               disabled:opacity-50 transition-colors"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={loading || !question.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700
+                               disabled:text-gray-500 text-white px-4 py-2 rounded
+                               text-sm font-medium transition-colors
+                               flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <span
+                        className="w-4 h-4 border-2 border-white
+                                       border-t-transparent rounded-full animate-spin"
+                      />
+                    ) : (
+                      <>
+                        Send <Send size={14} />
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </>
           )}

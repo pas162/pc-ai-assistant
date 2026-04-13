@@ -6,6 +6,7 @@ from app.routes import workspaces
 from app.routes import documents
 from app.routes import chat
 from app.routes import chat_sessions
+from app.routes import models
 
 # Get our settings
 settings = get_settings()
@@ -29,6 +30,7 @@ app.include_router(workspaces.router)
 app.include_router(documents.router)
 app.include_router(chat.router)
 app.include_router(chat_sessions.router)
+app.include_router(models.router, prefix="/models", tags=["models"])
 
 @app.get("/health")
 def health_check():
