@@ -16,13 +16,13 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Wrap fetchDocs in useCallback so we can call it from polling ──────────
+  // ── Fetch Documents ───────────────────────────────────────────────────────
   const fetchDocs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getDocuments();
       setDocuments(data);
-      return data; // ← return data so polling can inspect statuses
+      return data;
     } catch {
       setError("Failed to load documents");
       return [];
@@ -35,45 +35,44 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
     fetchDocs();
   }, [fetchDocs]);
 
-  // ── Polling logic ─────────────────────────────────────────────────────────
+  // ── Polling Logic ─────────────────────────────────────────────────────────
   const startPolling = useCallback(() => {
-    // Don't start a second interval if one is already running
     if (pollingRef.current) return;
 
-    console.log("[Polling] Started");
     pollingRef.current = setInterval(async () => {
       const data = await getDocuments();
       setDocuments(data);
 
-      // Stop polling when NO documents are pending or processing
       const stillProcessing = data.some(
         (d) => d.status === "pending" || d.status === "processing",
       );
 
       if (!stillProcessing) {
-        console.log("[Polling] All docs done — stopping");
         clearInterval(pollingRef.current!);
         pollingRef.current = null;
       }
-    }, 2000); // poll every 2 seconds
+    }, 2000);
   }, []);
 
-  // ── Cleanup polling on unmount ────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
 
+  // ── Upload Logic ──────────────────────────────────────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       setUploading(true);
       setUploadProgress(0);
+
+      // I accidentally removed this callback in the last step! It's back now.
       await uploadDocument(file, (percent) => {
         setUploadProgress(percent);
       });
+
       await fetchDocs();
       showToast("File uploaded! Processing in background...", "info");
       startPolling();
@@ -86,23 +85,32 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
     }
   };
 
+  // ── Delete / Cancel Logic ─────────────────────────────────────────────────
   const handleDelete = async (doc: Document) => {
-    if (
-      !window.confirm(
-        `Delete "${doc.filename}"?\n\nThis will remove it from ALL workspaces. This cannot be undone.`,
-      )
-    )
-      return;
+    const isProcessing =
+      doc.status === "pending" || doc.status === "processing";
+
+    const message = isProcessing
+      ? `Cancel processing and delete "${doc.filename}"?`
+      : `Delete "${doc.filename}"?\n\nThis will remove it from ALL workspaces. This cannot be undone.`;
+
+    if (!window.confirm(message)) return;
+
     try {
       await deleteDocument(doc.id);
       await fetchDocs();
-      showToast(`"${doc.filename}" deleted`, "info");
+      showToast(
+        isProcessing
+          ? `Canceled "${doc.filename}"`
+          : `"${doc.filename}" deleted`,
+        "info",
+      );
     } catch {
       showToast("Failed to delete document", "error");
     }
   };
 
-  // ── Status badge ────────────────────────────────────────────────────────────
+  // ── Status Badge Colors ───────────────────────────────────────────────────
   function getStatusBadgeClass(status: string): string {
     switch (status) {
       case "completed":
@@ -137,18 +145,18 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 
                      rounded transition-colors disabled:opacity-50 text-sm font-medium"
         >
           {uploading ? `Uploading ${uploadProgress}%` : "Upload File"}
         </button>
       </div>
 
-      {/* ── Progress Bar — only visible while uploading ── */}
+      {/* Upload Progress Bar */}
       {uploading && (
         <div className="mb-4">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>Uploading file...</span>
+            <span>Uploading file to server...</span>
             <span>{uploadProgress}%</span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-2">
@@ -187,10 +195,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-28">
-                  Size
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-28">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-40">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24">
@@ -213,26 +218,40 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
                   <td className="px-6 py-4 text-sm text-gray-400 uppercase">
                     {doc.file_type || "unknown"}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-400">
-                    {doc.file_size
-                      ? `${(doc.file_size / 1024).toFixed(1)} KB`
-                      : "N/A"}
-                  </td>
+
+                  {/* ── STATUS COLUMN (Processing Progress Bar) ── */}
                   <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold
-                      rounded-full ${getStatusBadgeClass(doc.status)}`}
-                    >
-                      {doc.status}
-                    </span>
+                    {doc.status === "processing" ? (
+                      <div className="flex flex-col gap-1 min-w-32">
+                        <div className="flex justify-between text-xs text-gray-400">
+                          <span className="text-blue-400">Processing...</span>
+                          <span>{doc.progress ?? 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-1.5">
+                          <div
+                            className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${doc.progress ?? 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <span
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
+                      >
+                        {doc.status}
+                      </span>
+                    )}
                   </td>
+
+                  {/* ── ACTION COLUMN (Cancel / Delete Button) ── */}
                   <td className="px-6 py-4 text-sm">
                     <button
                       onClick={() => handleDelete(doc)}
-                      className="text-red-400 hover:text-red-300
-                                 text-xs font-medium transition-colors"
+                      className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
                     >
-                      Delete
+                      {doc.status === "pending" || doc.status === "processing"
+                        ? "Cancel"
+                        : "Delete"}
                     </button>
                   </td>
                 </tr>

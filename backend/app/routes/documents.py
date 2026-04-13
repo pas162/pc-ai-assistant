@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
-from app.services.document_processor import process_document  # ← new import
+from app.services.document_processor import process_document
 router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -44,11 +44,12 @@ async def upload_document(
     db.commit()
     db.refresh(db_document)
 
-    # 5. Kick off background processing — runs AFTER response is returned
-    #    Like @Async in Spring — fire and forget
-    background_tasks.add_task(process_document, db_document.id)  # ← new line
+    # 5. Trigger background processing!
+    background_tasks.add_task(process_document, db_document.id)
 
     return db_document  # returns "pending" immediately
+
+
 @router.get("", response_model=list[DocumentResponse])
 def list_documents(db: Session = Depends(get_db)):
     """
@@ -70,10 +71,14 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
 
     # Step 2: Delete the physical file from disk
-    # We need to find the file using the pattern: {id}_{filename}
     file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
     if os.path.exists(file_path):
         os.remove(file_path)
+
+    # ADD THIS: Also delete the cache file if it exists!
+    cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
+    if os.path.exists(cache_path):
+        os.remove(cache_path)
 
     # Step 3: Delete the database record
     # PostgreSQL CASCADE will automatically clean up workspace_documents links

@@ -1,4 +1,5 @@
 import os
+import pickle
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -111,38 +112,21 @@ def link_document_to_workspace(
     workspace.documents.append(document)
     db.commit()
 
-    # Step 5: Run the RAG pipeline — extract, chunk, embed, store
+    # Step 5: Load from cache and store in ChromaDB (INSTANT!)
     try:
-        file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+        cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
 
-        print(f"Processing '{document.filename}' for workspace {workspace_id}...")
+        if not os.path.exists(cache_path):
+            raise ValueError("Cache file missing. Document may not have finished processing.")
 
-        # 5a. Extract raw text from the file
-        text = extract_text(file_path, document.file_type)
-        print(f"  Extracted {len(text)} characters")
-
-        # 5b. Split text into overlapping chunks
-        chunk_dicts = chunk_document(text, document_id)
-        print(f"  Created {len(chunk_dicts)} chunks")
-
-        # Extract just the plain text strings for embedding + ChromaDB
-        chunks = [c["text"] for c in chunk_dicts]
-
-        # 5c. Convert all chunks to vectors in one batch (faster than one by one)
-        embeddings = get_embeddings_batch(chunks)
-        print(f"  Generated {len(embeddings)} embeddings")
-
-        # 5d. Save chunks + vectors into this workspace's ChromaDB collection
+        with open(cache_path, "rb") as f:
+            cached_data = pickle.load(f)
         stored = store_document_vectors(
             document_id=document_id,
             workspace_id=workspace_id,
-            chunks=chunks,
-            embeddings=embeddings
+            chunks=cached_data["chunks"],
+            embeddings=cached_data["embeddings"]
         )
-
-        # 5e. Mark document as completed in PostgreSQL
-        document.status = "completed"
-        db.commit()
 
         return {
             "message": f"Successfully attached '{document.filename}' to '{workspace.name}'",
@@ -150,10 +134,10 @@ def link_document_to_workspace(
         }
 
     except Exception as e:
-        # If pipeline fails, mark document as failed but keep the DB link
-        document.status = "failed"
+        # If it fails, undo the database link so it doesn't get stuck
+        workspace.documents.remove(document)
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Attach failed: {str(e)}")
 
 
 @router.delete("/{workspace_id}/documents/{document_id}")

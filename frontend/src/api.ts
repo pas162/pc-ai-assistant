@@ -14,6 +14,7 @@ export interface Document {
   file_type: string | null;
   file_size: number | null;
   status: string;
+  progress: number;
   created_at: string;
 }
 

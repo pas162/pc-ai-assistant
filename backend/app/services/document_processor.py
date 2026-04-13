@@ -1,103 +1,84 @@
 import os
+import pickle
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.document import Document
 from app.services.text_extractor import extract_text
 from app.services.text_chunker import chunk_document
 from app.services.embedder import get_embeddings_batch
-from app.services.vector_store import store_document_vectors
 
 UPLOAD_DIR = "uploaded_docs"
+EMBEDDING_BATCH_SIZE = 100
 
+def _update_progress(db: Session, document_id: str, progress: int, status: str = None) -> bool:
+    """Returns True if successful, False if document was deleted (canceled)."""
+    
+    # 1. Check if document still exists
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        return False  # Document is gone! User canceled.
+    
+    # 2. Prepare the exact fields to update
+    update_data = {"progress": progress}
+    if status:
+        update_data["status"] = status
+        
+    # 3. FORCE the SQL UPDATE command directly (bypasses SQLAlchemy tracking)
+    db.query(Document).filter(Document.id == document_id).update(update_data)
+    db.commit()
+    
+    return True
 
 def process_document(document_id: str):
-    """
-    Full processing pipeline for an uploaded document.
-    Runs as a background task — AFTER the upload response is returned.
-
-    Steps:
-    1. Set status → "processing"
-    2. Extract text from file
-    3. Chunk the text
-    4. Generate embeddings
-    5. Store vectors in ChromaDB (for every workspace this doc is in)
-    6. Set status → "completed"
-
-    On any error → set status = "failed"
-    """
-    # Background tasks run outside the request context,
-    # so we need to create a NEW database session here.
-    # Think of it like opening a new JDBC connection in a background thread.
     db: Session = SessionLocal()
-
     try:
-        # ── Step 1: Mark as processing ───────────────────────────────────────
+        if not _update_progress(db, document_id, 0, status="processing"):
+            return
+        
         document = db.query(Document).filter(Document.id == document_id).first()
-        if not document:
-            print(f"[Processor] Document {document_id} not found — skipping")
+        file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+        
+        # 1. Extract Text (10%)
+        text = extract_text(file_path, document.file_type)
+        if not text.strip():
+            raise ValueError("No text extracted")
+        if not _update_progress(db, document_id, 10):
             return
 
-        document.status = "processing"
-        db.commit()
-        print(f"[Processor] Starting processing for: {document.filename}")
+        # 2. Chunk Text (30%)
+        chunk_dicts = chunk_document(text, document_id=document.id)
+        chunk_texts = [c["text"] for c in chunk_dicts]
+        if not _update_progress(db, document_id, 30):
+            return
 
-        # ── Step 2: Extract text ─────────────────────────────────────────────
-        file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
-        print(f"[Processor] Extracting text from: {file_path}")
-        text = extract_text(file_path, document.file_type)
+        # 3. Embeddings in batches (30% -> 95%)
+        all_embeddings = []
+        total_chunks = len(chunk_texts)
+        
+        for batch_start in range(0, total_chunks, EMBEDDING_BATCH_SIZE):
+            batch_end = min(batch_start + EMBEDDING_BATCH_SIZE, total_chunks)
+            batch = chunk_texts[batch_start:batch_end]
+            
+            batch_embeddings = get_embeddings_batch(batch)
+            all_embeddings.extend(batch_embeddings)
+            
+            progress = int(30 + ((batch_end / total_chunks) * 65))
 
-        if not text.strip():
-            raise ValueError("No text could be extracted from this file")
+            # CHECK IF CANCELED AFTER EVERY BATCH!
+            is_active = _update_progress(db, document_id, progress)
+            if not is_active:
+                print(f"[Processor] Document {document_id} was canceled. Stopping CPU work.")
+                return # ← EXIT THE THREAD EARLY!
 
-        print(f"[Processor] Extracted {len(text)} characters")
+        # 4. Cache the results to disk so 'attach' is instant (95% -> 100%)
+        cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
+        with open(cache_path, "wb") as f:
+            pickle.dump({"chunks": chunk_texts, "embeddings": all_embeddings}, f)
 
-        # ── Step 3: Chunk the text ───────────────────────────────────────────
-        chunks = chunk_document(text, document_id=document.id)
-        print(f"[Processor] Created {len(chunks)} chunks")
-
-        # ── Step 4: Generate embeddings ──────────────────────────────────────
-        chunk_texts = [c["text"] for c in chunks]
-        print(f"[Processor] Generating embeddings for {len(chunk_texts)} chunks...")
-        embeddings = get_embeddings_batch(chunk_texts)
-        print(f"[Processor] Embeddings done")
-
-        # ── Step 5: Store vectors in ChromaDB ────────────────────────────────
-        # A document can be attached to multiple workspaces.
-        # We store vectors in EACH workspace's ChromaDB collection.
-        # Re-fetch with relationships loaded
-        document = db.query(Document).filter(Document.id == document_id).first()
-        workspaces = document.workspaces  # Many-to-Many relationship
-
-        if workspaces:
-            for workspace in workspaces:
-                print(f"[Processor] Storing vectors in workspace: {workspace.name}")
-                store_document_vectors(
-                    document_id=document.id,
-                    workspace_id=workspace.id,
-                    chunks=chunk_texts,
-                    embeddings=embeddings,
-                )
-        else:
-            # Document not yet attached to any workspace — that's fine.
-            # Vectors will be stored when it gets attached later.
-            print(f"[Processor] No workspaces attached yet — skipping vector store")
-
-        # ── Step 6: Mark as completed ────────────────────────────────────────
-        document.status = "completed"
-        db.commit()
-        print(f"[Processor] Completed: {document.filename}")
+        _update_progress(db, document_id, 100, status="completed")
 
     except Exception as e:
-        # On ANY error — mark as failed so the user knows
-        print(f"[Processor] FAILED processing {document_id}: {str(e)}")
-        try:
-            document = db.query(Document).filter(Document.id == document_id).first()
-            if document:
-                document.status = "failed"
-                db.commit()
-        except Exception as inner_e:
-            print(f"[Processor] Could not update status to failed: {inner_e}")
-
+        print(f"Processing failed: {e}")
+        _update_progress(db, document_id, 0, status="failed")
     finally:
-        # Always close the session — like closing a JDBC connection
         db.close()

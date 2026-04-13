@@ -26,7 +26,7 @@ export default function WorkspaceDetail({
     workspace.documents,
   );
   const [showAttachModal, setShowAttachModal] = useState(false);
-  const [attaching, setAttaching] = useState(false);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
   // ← removed: editName, editDescription, saving
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function WorkspaceDetail({
   // ── Attach ──────────────────────────────────────────────────────────────────
   const handleAttach = async (doc: Document) => {
     try {
-      setAttaching(true);
+      setAttachingId(doc.id);
       await linkDocumentToWorkspace(workspace.id, doc.id);
       setAttachedDocs((prev) => [...prev, doc]);
       setShowAttachModal(false);
@@ -54,7 +54,7 @@ export default function WorkspaceDetail({
     } catch {
       showToast("Failed to attach document", "error");
     } finally {
-      setAttaching(false);
+      setAttachingId(null);
     }
   };
 
@@ -252,7 +252,7 @@ export default function WorkspaceDetail({
                       </div>
                       <button
                         onClick={() => handleAttach(doc)}
-                        disabled={!isReady || attaching}
+                        disabled={!isReady || attachingId !== null}
                         title={
                           !isReady
                             ? "Document must finish processing before attaching"
@@ -264,7 +264,7 @@ export default function WorkspaceDetail({
                       >
                         {!isReady
                           ? "Not ready"
-                          : attaching
+                          : attachingId === doc.id
                             ? "Attaching..."
                             : "Attach"}
                       </button>
