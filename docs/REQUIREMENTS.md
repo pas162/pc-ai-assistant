@@ -89,6 +89,9 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Panels collapse to zero width — no layout bleed
 - [x] Drag handles hidden when panel is collapsed
 - [x] Expand button always visible outside PanelGroup when sessions collapsed
+- [x] Workspaces header row is fully clickable to create new workspace
+- [x] Chats header row is fully clickable to create new chat session
+- [x] Chat session titles use smaller font for compact display
 
 ## In Progress
 

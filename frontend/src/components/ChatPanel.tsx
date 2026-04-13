@@ -17,8 +17,8 @@ import {
   Bot,
   User,
   Send,
-  ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import { fetchAvailableModels } from "../api";
 
@@ -364,25 +364,26 @@ export default function ChatPanel({
         >
           {sessionsOpen && (
             <>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={handleNewSession}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white
-                             text-sm px-2 py-2 rounded font-medium transition-colors"
+              {/* Header — full row is clickable, bottom border acts as separator */}
+              <button
+                onClick={handleNewSession}
+                className="flex items-center justify-between px-3 py-2 border-b border-gray-700
+                           w-full hover:bg-gray-800 transition-colors group shrink-0"
+                title="New Chat"
+              >
+                <span
+                  className="text-xs font-semibold text-gray-400 uppercase tracking-wide
+                                 group-hover:text-gray-200 transition-colors"
                 >
-                  + New Chat
-                </button>
-                <button
-                  onClick={() => setSessionsOpen(false)}
-                  className="text-gray-500 hover:text-gray-300 p-1.5 rounded
-                             hover:bg-gray-800 transition-colors shrink-0"
-                  title="Hide chat list"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              </div>
+                  Chats
+                </span>
+                <Plus
+                  size={15}
+                  className="text-gray-400 group-hover:text-white transition-colors"
+                />
+              </button>
 
-              <div className="flex-1 overflow-y-auto flex flex-col gap-1">
+              <div className="flex-1 overflow-y-auto flex flex-col gap-1 py-1">
                 {loadingSessions ? (
                   <p className="text-xs text-gray-500 text-center mt-4">
                     Loading...
@@ -400,7 +401,7 @@ export default function ChatPanel({
                         handleSelectSession(session)
                       }
                       className={`group w-full flex items-center justify-between
-                        px-2 py-1.5 rounded text-xs cursor-pointer transition-colors
+                        px-3 py-2 rounded mx-1 cursor-pointer transition-colors
                         ${
                           activeSession?.id === session.id
                             ? "bg-blue-600 text-white font-medium"
@@ -420,12 +421,12 @@ export default function ChatPanel({
                         />
                       ) : (
                         <span
-                          className="truncate flex-1 flex items-center gap-1"
+                          className="truncate flex-1 flex items-center gap-1 text-xs"
                           onDoubleClick={(e) => handleStartRename(e, session)}
                           title="Double-click to rename"
                         >
                           <MessageSquare
-                            size={12}
+                            size={10}
                             className="shrink-0 text-blue-400"
                           />
                           {session.title}

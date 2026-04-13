@@ -7,7 +7,7 @@ import {
 } from "../api";
 import type { Workspace } from "../api";
 import type { ToastType } from "../hooks/useToast";
-import { FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { FolderOpen, MoreVertical, Pencil, Trash2, Plus } from "lucide-react";
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
   onSelectWorkspace: (workspace: Workspace) => void;
@@ -123,21 +123,26 @@ export default function WorkspaceList({
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+      {/* Header — full row is clickable, bottom border acts as separator */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="flex items-center justify-between px-3 py-2 border-b border-gray-700
+                   w-full hover:bg-gray-800 transition-colors group shrink-0"
+        title="New Workspace"
+      >
+        <span
+          className="text-xs font-semibold text-gray-400 uppercase tracking-wide
+                         group-hover:text-gray-200 transition-colors"
+        >
           Workspaces
         </span>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700
-                     text-white text-xs font-medium px-2 py-1 rounded transition-colors"
-        >
-          + New
-        </button>
-      </div>
+        <Plus
+          size={15}
+          className="text-gray-400 group-hover:text-white transition-colors"
+        />
+      </button>
 
-      {/* Workspace list */}
+      {/* Workspace list — no extra separator needed, button border-b handles it */}
       <div className="flex-1 overflow-y-auto py-2">
         {loading && (
           <p className="text-gray-500 text-xs px-4 py-2">Loading...</p>

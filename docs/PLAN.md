@@ -80,6 +80,9 @@ An internal AI platform with:
 - [x] Panel sizes saved to localStorage (survives page refresh)
 - [x] Collapsible panels using ImperativePanelHandle (collapse to zero width)
 - [x] Drag handle hidden when panel is collapsed
+- [x] Combined "Workspaces" header + New button into single clickable row
+- [x] Combined "Chats" header + New Chat button into single clickable row
+- [x] Smaller chat session title font size (text-xs)
 
 ### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
 
