@@ -9,7 +9,12 @@ import {
   deleteChatSession,
   updateChatSession,
 } from "../api";
-import type { ChatSession, ChatSessionDetail, ChatMessage } from "../api";
+import type {
+  ChatSession,
+  ChatSessionDetail,
+  ChatMessage,
+  ChatSource,
+} from "../api";
 import type { ToastType } from "../hooks/useToast";
 import {
   MessageSquare,
@@ -22,6 +27,7 @@ import {
   Database,
   Copy,
   Check,
+  StopCircle,
 } from "lucide-react";
 import { fetchAvailableModels } from "../api";
 import ReactMarkdown from "react-markdown";
@@ -61,11 +67,13 @@ export default function ChatPanel({
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [useRag, setUseRag] = useState(true);
+  const [lastSources, setLastSources] = useState<ChatSource[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingTextRef = useRef("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const sessionsPanelRef = useRef<ImperativePanelHandle>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const onSessionChangeRef = useRef(onSessionChange);
   useEffect(() => {
@@ -237,6 +245,9 @@ export default function ChatPanel({
     setQuestion("");
     setLoading(true);
     setStreamingText("");
+    setLastSources([]); // ← reset sources only
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     const tempUserMessage: ChatMessage = {
       id: "temp-" + Date.now(),
@@ -258,6 +269,7 @@ export default function ChatPanel({
           setStreamingText((prev) => prev + chunk);
         },
         (data) => {
+          setLastSources(data.sources ?? []); // ← keep sources
           setActiveSession((prev) => {
             if (!prev) return prev;
             const withoutTemp = prev.messages.filter(
@@ -296,6 +308,7 @@ export default function ChatPanel({
           }
           setStreamingText("");
           setLoading(false);
+          abortControllerRef.current = null;
         },
         (error: string) => {
           setActiveSession((prev) => {
@@ -307,6 +320,7 @@ export default function ChatPanel({
           });
           setStreamingText("");
           setLoading(false);
+          abortControllerRef.current = null;
           const isTokenError = error.toLowerCase().includes("api token");
           showToast(
             isTokenError
@@ -315,8 +329,14 @@ export default function ChatPanel({
             "error",
           );
         },
+        controller.signal,
       );
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setStreamingText("");
+        setLoading(false);
+        return;
+      }
       setActiveSession((prev) => {
         if (!prev) return prev;
         return {
@@ -328,6 +348,14 @@ export default function ChatPanel({
       setLoading(false);
       showToast("Failed to send message. Please try again.", "error");
     }
+  };
+
+  const handleStop = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setLoading(false);
+    setStreamingText("");
+    showToast("Stopped", "info");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -482,9 +510,18 @@ export default function ChatPanel({
                     Ask a question about your documents
                   </div>
                 ) : (
-                  activeSession.messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} />
-                  ))
+                  activeSession.messages.map((msg, index) => {
+                    const isLastAssistant =
+                      msg.role === "assistant" &&
+                      index === activeSession.messages.length - 1;
+                    return (
+                      <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        sources={isLastAssistant ? lastSources : undefined}
+                      />
+                    );
+                  })
                 )}
 
                 {streamingText && (
@@ -530,7 +567,7 @@ export default function ChatPanel({
                                disabled:opacity-50"
                   />
 
-                  {/* Bottom bar — model selector + send button */}
+                  {/* Bottom bar */}
                   <div className="flex items-center justify-between px-3 pb-2 pt-1">
                     <div className="flex items-center gap-2">
                       <select
@@ -552,6 +589,7 @@ export default function ChatPanel({
                           ))
                         )}
                       </select>
+
                       <button
                         onClick={() => setUseRag(!useRag)}
                         title={
@@ -559,35 +597,42 @@ export default function ChatPanel({
                             ? "RAG enabled — click to disable"
                             : "RAG disabled — click to enable"
                         }
-                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-                          useRag
-                            ? "bg-blue-600 text-white hover:bg-blue-700"
-                            : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
-                        }`}
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs
+                                   font-medium transition-colors ${
+                                     useRag
+                                       ? "bg-blue-600 text-white hover:bg-blue-700"
+                                       : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                                   }`}
                       >
                         <Database size={12} />
                         {useRag ? "RAG On" : "RAG Off"}
                       </button>
                     </div>
-                    <button
-                      onClick={handleSend}
-                      disabled={loading || !question.trim()}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700
-                                 disabled:text-gray-500 text-white px-3 py-1.5
-                                 rounded-lg text-sm font-medium transition-colors
-                                 flex items-center gap-1.5"
-                    >
-                      {loading ? (
-                        <span
-                          className="w-4 h-4 border-2 border-white
-                                         border-t-transparent rounded-full animate-spin"
-                        />
-                      ) : (
-                        <>
-                          Send <Send size={13} />
-                        </>
-                      )}
-                    </button>
+
+                    {/* Icon-only Send / Stop button */}
+                    {loading ? (
+                      <button
+                        onClick={handleStop}
+                        title="Stop generating"
+                        className="w-7 h-7 flex items-center justify-center
+                                   bg-red-600 hover:bg-red-700 text-white
+                                   rounded-lg transition-colors"
+                      >
+                        <StopCircle size={15} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleSend}
+                        disabled={!question.trim()}
+                        title="Send message"
+                        className="w-7 h-7 flex items-center justify-center
+                                   bg-blue-600 hover:bg-blue-700
+                                   disabled:bg-gray-700 disabled:text-gray-500
+                                   text-white rounded-lg transition-colors"
+                      >
+                        <Send size={14} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -654,7 +699,13 @@ function CodeBlock({
 }
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
-function MessageBubble({ message }: { message: ChatMessage }) {
+function MessageBubble({
+  message,
+  sources,
+}: {
+  message: ChatMessage;
+  sources?: ChatSource[];
+}) {
   const isUser = message.role === "user";
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: "2-digit",
@@ -720,6 +771,24 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           )}
         </div>
         <span className="text-xs text-gray-600">{time}</span>
+
+        {/* Sources — remove the chunks count span, keep only filenames */}
+        {!isUser && sources && sources.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {sources.map((src) => (
+              <span
+                key={src.id}
+                className="text-xs bg-gray-700 text-gray-400
+                           px-1.5 py-0.5 rounded"
+                title={src.filename}
+              >
+                {src.filename.length > 25
+                  ? src.filename.slice(0, 25) + "…"
+                  : src.filename}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

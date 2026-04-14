@@ -142,6 +142,11 @@ export interface SendMessageResponse {
   chunks_used: number;
 }
 
+export interface ChatSource {
+  id: string;
+  filename: string;
+}
+
 // POST /chat/sessions — create a new session
 export const createChatSession = async (
   workspaceId: string,
@@ -198,58 +203,81 @@ export const streamMessage = (
     user_message_id: string;
     assistant_message_id: string;
     chunks_used: number;
-    new_title: string | null; // ← add this
+    sources: ChatSource[];
+    new_title: string | null;
   }) => void,
   onError: (error: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> => {
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, model, use_rag: useRag }),
-  }).then((response) => {
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
-    }
+    signal,
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
 
-    const read = (): Promise<void> => {
-      return reader.read().then(({ done, value }) => {
-        if (done) return;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() ?? "";
-
-        for (const event of events) {
-          const line = event.trim();
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6);
-          try {
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "chunk") {
-              onChunk(parsed.content);
-            } else if (parsed.type === "done") {
-              onDone({
-                user_message_id: parsed.user_message_id,
-                assistant_message_id: parsed.assistant_message_id,
-                chunks_used: parsed.chunks_used,
-                new_title: parsed.new_title,
-              });
-            } else if (parsed.type === "error") {
-              onError(parsed.content);
+      const read = (): Promise<void> => {
+        return reader
+          .read()
+          .then(({ done, value }) => {
+            // ── Check abort signal on every chunk ──────────────────
+            if (signal?.aborted) {
+              reader.cancel();
+              return;
             }
-          } catch {
-            // Malformed JSON — skip
-          }
-        }
-        return read();
-      });
-    };
+            if (done) return;
 
-    return read();
-  });
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split("\n\n");
+            buffer = events.pop() ?? "";
+
+            for (const event of events) {
+              const line = event.trim();
+              if (!line.startsWith("data: ")) continue;
+              const jsonStr = line.slice(6);
+              try {
+                const parsed = JSON.parse(jsonStr);
+                if (parsed.type === "chunk") {
+                  onChunk(parsed.content);
+                } else if (parsed.type === "done") {
+                  onDone({
+                    user_message_id: parsed.user_message_id,
+                    assistant_message_id: parsed.assistant_message_id,
+                    chunks_used: parsed.chunks_used,
+                    sources: parsed.sources ?? [],
+                    new_title: parsed.new_title,
+                  });
+                } else if (parsed.type === "error") {
+                  onError(parsed.content);
+                }
+              } catch {
+                // Malformed JSON — skip
+              }
+            }
+            return read();
+          })
+          .catch((err) => {
+            // ── Abort is expected — silently stop reading ───────────
+            if (err.name === "AbortError" || signal?.aborted) return;
+            throw err;
+          });
+      };
+
+      return read();
+    })
+    .catch((err) => {
+      // ── Top-level abort catch ───────────────────────────────────
+      if (err.name === "AbortError" || signal?.aborted) return;
+      throw err;
+    });
 };
 
 // POST /chat/sessions/:id/message — send a message

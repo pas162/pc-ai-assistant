@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.workspace import Workspace
 from app.models.chat import ChatSession, ChatMessage
+from app.models.document import Document
 from app.schemas.chat import (
     CreateSessionRequest,
     SendMessageRequest,
@@ -234,9 +235,27 @@ def stream_message(
         )
         context = build_context(chunks)
         print(f"  RAG enabled — found {len(chunks)} relevant chunks")
+
+        # Resolve unique document filenames from chunk metadata
+        seen_ids = set()
+        unique_doc_ids = []
+        for chunk in chunks:
+            doc_id = chunk["document_id"]
+            if doc_id and doc_id not in seen_ids:
+                seen_ids.add(doc_id)
+                unique_doc_ids.append(doc_id)
+
+        source_docs = db.query(Document).filter(
+            Document.id.in_(unique_doc_ids)
+        ).all()
+        sources = [
+            {"id": doc.id, "filename": doc.filename}
+            for doc in source_docs
+        ]
     else:
         chunks = []
         context = None
+        sources = []
         print(f"  RAG disabled — skipping document retrieval")
 
     # Step 4 — Build messages array
@@ -345,6 +364,7 @@ def stream_message(
                 "user_message_id": user_msg.id,
                 "assistant_message_id": assistant_msg.id,
                 "chunks_used": len(chunks),
+                "sources": sources,
                 "new_title": new_title,
             })
             yield f"data: {done_payload}\n\n"
