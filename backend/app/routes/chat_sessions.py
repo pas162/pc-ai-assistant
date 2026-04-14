@@ -64,29 +64,39 @@ def send_message(
 
     print(f"Loaded {len(history)} previous messages from session {session_id}")
 
-    chunks = retrieve_relevant_chunks(
-        question=request.question,
-        workspace_id=session.workspace_id
-    )
-    print(f"  Found {len(chunks)} relevant chunks")
-
-    context = build_context(chunks)
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful technical assistant. "
-                "Answer questions using the provided document excerpts as your primary source.\n\n"
-                "Guidelines:\n"
-                "- Answer as completely and specifically as possible\n"
-                "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
-                "- Synthesize information across multiple excerpts when relevant\n"
-                "- Use tables, bullet points, or structured formatting when it improves clarity\n"
-                "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
+    # Step 3 — Retrieve relevant chunks (only if RAG is enabled)
+    if request.use_rag:
+        chunks = retrieve_relevant_chunks(
+            question=request.question,
+            workspace_id=session.workspace_id
+        )
+        context = build_context(chunks)
+        print(f"  RAG enabled — found {len(chunks)} relevant chunks")
+    else:
+        chunks = []
+        context = None
+        print(f"  RAG disabled — skipping document retrieval")
+    # Step 4 — Build messages array
+    if request.use_rag:
+        system_content = (
+            "You are a helpful technical assistant. "
+            "Answer questions using the provided document excerpts as your primary source.\n\n"
+            "Guidelines:\n"
+            "- Answer as completely and specifically as possible\n"
+            "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
+            "- Synthesize information across multiple excerpts when relevant\n"
+            "- Use tables, bullet points, or structured formatting when it improves clarity\n"
+            "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
                 f"Document excerpts:\n\n{context}"
             )
-        }
-    ]
+    else:
+        system_content = (
+            "You are a helpful technical assistant. "
+            "Answer questions using your own knowledge. "
+            "Use tables, bullet points, or structured formatting when it improves clarity."
+        )
+
+    messages = [{"role": "system", "content": system_content}]
     for msg in history:
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": request.question})
@@ -106,7 +116,7 @@ def send_message(
                 session_id=session_id,
                 role="user",
                 content=request.question
-    )
+            )
     assistant_message = ChatMessage(
                 id=str(uuid.uuid4()),
                 session_id=session_id,

@@ -192,6 +192,7 @@ export const streamMessage = (
   sessionId: string,
   question: string,
   model: string,
+  useRag: boolean,
   onChunk: (text: string) => void,
   onDone: (data: {
     user_message_id: string;
@@ -204,7 +205,7 @@ export const streamMessage = (
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, model }),
+    body: JSON.stringify({ question, model, use_rag: useRag }),
   }).then((response) => {
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status}`);
@@ -256,10 +257,12 @@ export const sendMessage = async (
   sessionId: string,
   question: string,
   model: string,
+  useRag: boolean = true,
 ): Promise<SendMessageResponse> => {
   const response = await api.post(`/chat/sessions/${sessionId}/message`, {
     question,
     model,
+    use_rag: useRag,
   });
   return response.data;
 };

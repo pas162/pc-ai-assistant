@@ -18,6 +18,7 @@ class SendMessageRequest(BaseModel):
     """
     question: str
     model: str = "databricks-claude-sonnet-4-6"
+    use_rag: bool = True  # True = search docs, False = pure LLM
 
 
 class UpdateSessionRequest(BaseModel):

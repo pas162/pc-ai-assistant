@@ -19,8 +19,10 @@ import {
   Send,
   ChevronRight,
   Plus,
+  Database,
 } from "lucide-react";
 import { fetchAvailableModels } from "../api";
+import ReactMarkdown from "react-markdown";
 
 const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
 
@@ -53,6 +55,7 @@ export default function ChatPanel({
   ]);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [modelsLoading, setModelsLoading] = useState(true);
+  const [useRag, setUseRag] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamingTextRef = useRef("");
@@ -245,6 +248,7 @@ export default function ChatPanel({
         activeSession.id,
         questionText,
         selectedModel,
+        useRag,
         (chunk: string) => {
           setStreamingText((prev) => prev + chunk);
         },
@@ -523,25 +527,43 @@ export default function ChatPanel({
 
                   {/* Bottom bar — model selector + send button */}
                   <div className="flex items-center justify-between px-3 pb-2 pt-1">
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      disabled={modelsLoading}
-                      className="bg-gray-700 text-gray-400 text-xs border border-gray-600
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        disabled={modelsLoading}
+                        className="bg-gray-700 text-gray-400 text-xs border border-gray-600
                                  rounded-lg px-2 py-1 focus:outline-none focus:ring-1
                                  focus:ring-blue-500 disabled:opacity-50
                                  disabled:cursor-wait max-w-52"
-                    >
-                      {modelsLoading ? (
-                        <option>Loading...</option>
-                      ) : (
-                        availableModels.map((model) => (
-                          <option key={model} value={model}>
-                            {model}
-                          </option>
-                        ))
-                      )}
-                    </select>
+                      >
+                        {modelsLoading ? (
+                          <option>Loading...</option>
+                        ) : (
+                          availableModels.map((model) => (
+                            <option key={model} value={model}>
+                              {model}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <button
+                        onClick={() => setUseRag(!useRag)}
+                        title={
+                          useRag
+                            ? "RAG enabled — click to disable"
+                            : "RAG disabled — click to enable"
+                        }
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                          useRag
+                            ? "bg-blue-600 text-white hover:bg-blue-700"
+                            : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+                        }`}
+                      >
+                        <Database size={12} />
+                        {useRag ? "RAG On" : "RAG Off"}
+                      </button>
+                    </div>
                     <button
                       onClick={handleSend}
                       disabled={loading || !question.trim()}
@@ -596,14 +618,20 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         className={`flex flex-col gap-1 max-w-[80%] ${isUser ? "items-end" : "items-start"}`}
       >
         <div
-          className={`px-3 py-2 rounded-lg text-sm whitespace-pre-wrap
+          className={`px-3 py-2 rounded-lg text-sm
           ${
             isUser
-              ? "bg-blue-600 text-white rounded-tr-none"
+              ? "bg-blue-600 text-white rounded-tr-none whitespace-pre-wrap"
               : "bg-gray-800 text-gray-200 rounded-tl-none"
           }`}
         >
-          {message.content}
+          {isUser ? (
+            message.content
+          ) : (
+            <div className="prose prose-invert prose-sm max-w-none">
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            </div>
+          )}
         </div>
         <span className="text-xs text-gray-600">{time}</span>
       </div>
