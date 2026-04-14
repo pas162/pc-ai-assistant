@@ -75,10 +75,14 @@ def send_message(
         {
             "role": "system",
             "content": (
-                "You are a helpful assistant that answers questions "
-                "based on the provided document excerpts.\n\n"
-                "Use ONLY the information from the excerpts below to answer. "
-                "If the answer is not in the excerpts, say so clearly.\n\n"
+                "You are a helpful technical assistant. "
+                "Answer questions using the provided document excerpts as your primary source.\n\n"
+                "Guidelines:\n"
+                "- Answer as completely and specifically as possible\n"
+                "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
+                "- Synthesize information across multiple excerpts when relevant\n"
+                "- Use tables, bullet points, or structured formatting when it improves clarity\n"
+                "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
                 f"Document excerpts:\n\n{context}"
             )
         }

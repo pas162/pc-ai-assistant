@@ -6,7 +6,7 @@ from app.services.embedder import get_embedding
 def retrieve_relevant_chunks(
     question: str,
     workspace_id: str,
-    n_results: int = 5
+    n_results: int = 15
 ) -> List[str]:
     """
     Find the most relevant text chunks for a given question.
