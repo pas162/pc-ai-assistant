@@ -20,17 +20,18 @@ from app.services.retriever import retrieve_relevant_chunks, build_context
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
 
-# Add this near the top of the file, outside any function:
 FORMATTING_RULES = (
-            "Formatting rules:\n"
+    "Formatting rules:\n"
     "- Always wrap code in markdown fenced code blocks with the language tag\n"
     "- Use triple backticks to open and close code blocks, e.g. python or java\n"
     "- Never write code as plain text outside of a code block\n"
     "- Use ## headers to organize long answers\n"
-            "- Use bullet points or numbered lists where appropriate\n"
-            "- Use **bold** for important terms\n"
-    "- Use tables for comparisons\n"
-        )
+    "- Use bullet points or numbered lists where appropriate\n"
+    "- Use **bold** for important terms\n"
+    "- Always format tables with each row on a NEW LINE\n"
+    "- Table format: | Col1 | Col2 | on one line, then |------|------| on the next line, then each data row on its own line\n"
+    "- Never put an entire table on a single line\n"
+)
 
 
 # ─── Endpoint 1: Create a new chat session ─────────────────────────────────────

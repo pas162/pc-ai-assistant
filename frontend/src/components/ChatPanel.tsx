@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { fetchAvailableModels } from "../api";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
@@ -694,6 +695,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
                             prose-li:my-0.5"
             >
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   code({ className, children }) {
                     const match = /language-(\w+)/.exec(className || "");
