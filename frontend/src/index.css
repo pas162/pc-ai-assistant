@@ -15,3 +15,24 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #6b7280; /* gray-500 */
 }
+
+/* Add at the bottom */
+.prose pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+}
+
+.prose code {
+  background-color: #161b22 !important;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: #e6edf3 !important;
+}
+
+.prose pre code {
+  background-color: transparent !important;
+  padding: 0;
+}

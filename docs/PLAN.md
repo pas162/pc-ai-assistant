@@ -115,6 +115,12 @@ An internal AI platform with:
 - [x] Last active session remembered per workspace (survives workspace switching)
 - [x] Tab switching (Chat ↔ Documents) preserves chat state using CSS hidden
 - [x] Model selector combobox in chat input area (fetched from LLM API, per session)
+- [x] RAG toggle button (per message, RAG On/Off in chat input bar)
+- [x] Markdown rendering in assistant messages (react-markdown)
+- [x] Syntax highlighted code blocks (react-syntax-highlighter, vscDarkPlus theme)
+- [x] Code block language label + copy icon button
+- [x] LLM system prompt updated with formatting rules (code blocks, tables, headers)
+- [x] Improved RAG system prompt — synthesis-focused, not restrictive
 
 ### Settings & Configuration (Completed outside sprint plan) ✅ COMPLETE
 

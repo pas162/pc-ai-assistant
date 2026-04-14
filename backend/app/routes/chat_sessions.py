@@ -20,6 +20,18 @@ from app.services.retriever import retrieve_relevant_chunks, build_context
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
 
+# Add this near the top of the file, outside any function:
+FORMATTING_RULES = (
+            "Formatting rules:\n"
+    "- Always wrap code in markdown fenced code blocks with the language tag\n"
+    "- Use triple backticks to open and close code blocks, e.g. python or java\n"
+    "- Never write code as plain text outside of a code block\n"
+    "- Use ## headers to organize long answers\n"
+            "- Use bullet points or numbered lists where appropriate\n"
+            "- Use **bold** for important terms\n"
+    "- Use tables for comparisons\n"
+        )
+
 
 # ─── Endpoint 1: Create a new chat session ─────────────────────────────────────
 
@@ -32,10 +44,10 @@ def create_session(request: CreateSessionRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     session = ChatSession(
-        id=str(uuid.uuid4()),
+                id=str(uuid.uuid4()),
         workspace_id=request.workspace_id,
         title=request.title
-    )
+            )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -85,15 +97,15 @@ def send_message(
             "- Answer as completely and specifically as possible\n"
             "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
             "- Synthesize information across multiple excerpts when relevant\n"
-            "- Use tables, bullet points, or structured formatting when it improves clarity\n"
             "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
-                f"Document excerpts:\n\n{context}"
-            )
+            f"{FORMATTING_RULES}\n\n"
+            f"Document excerpts:\n\n{context}"
+        )
     else:
         system_content = (
             "You are a helpful technical assistant. "
-            "Answer questions using your own knowledge. "
-            "Use tables, bullet points, or structured formatting when it improves clarity."
+            "Answer questions using your own knowledge.\n\n"
+            f"{FORMATTING_RULES}"
         )
 
     messages = [{"role": "system", "content": system_content}]
@@ -213,26 +225,42 @@ def stream_message(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    # Step 3 — Retrieve relevant chunks from ChromaDB
-    chunks = retrieve_relevant_chunks(
-        question=request.question,
-        workspace_id=session.workspace_id
-    )
-    context = build_context(chunks)
+    # Step 3 — Retrieve relevant chunks (only if RAG is enabled)
+    if request.use_rag:
+        chunks = retrieve_relevant_chunks(
+            question=request.question,
+            workspace_id=session.workspace_id
+        )
+        context = build_context(chunks)
+        print(f"  RAG enabled — found {len(chunks)} relevant chunks")
+    else:
+        chunks = []
+        context = None
+        print(f"  RAG disabled — skipping document retrieval")
 
     # Step 4 — Build messages array
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful assistant that answers questions "
-                "based on the provided document excerpts.\n\n"
-                "Use ONLY the information from the excerpts below to answer. "
-                "If the answer is not in the excerpts, say so clearly.\n\n"
-                f"Document excerpts:\n\n{context}"
+    if request.use_rag:
+        system_content = (
+            "You are a helpful technical assistant. "
+            "Answer questions using the provided document excerpts as your primary source.\n\n"
+            "Guidelines:\n"
+            "- Answer as completely and specifically as possible\n"
+            "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
+            "- Synthesize information across multiple excerpts when relevant\n"
+            "- Use tables, bullet points, or structured formatting when it improves clarity\n"
+            "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
+            f"{FORMATTING_RULES}\n\n"
+            f"Document excerpts:\n\n{context}"
             )
-        }
-    ]
+    else:
+        system_content = (
+            "You are a helpful technical assistant. "
+            "Answer questions using your own knowledge. "
+            "Use tables, bullet points, or structured formatting when it improves clarity.\n\n"
+            f"{FORMATTING_RULES}"
+        )
+
+    messages = [{"role": "system", "content": system_content}]
     for msg in history:
         messages.append({"role": msg.role, "content": msg.content})
     messages.append({"role": "user", "content": request.question})

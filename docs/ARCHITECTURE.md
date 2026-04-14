@@ -28,14 +28,17 @@
 
 ## Key Frontend Packages
 
-| Package                | Version | Purpose                                  |
-| ---------------------- | ------- | ---------------------------------------- |
-| react                  | 18+     | UI framework                             |
-| typescript             | 5+      | Type safety                              |
-| tailwindcss            | 3+      | Utility-first CSS framework              |
-| axios                  | 1+      | HTTP client for API calls                |
-| lucide-react           | latest  | Clean SVG icon library (replaces emojis) |
-| react-resizable-panels | 2.1.7   | Draggable resizable panel layout         |
+| Package                  | Version | Purpose                                  |
+| ------------------------ | ------- | ---------------------------------------- |
+| react                    | 18+     | UI framework                             |
+| typescript               | 5+      | Type safety                              |
+| tailwindcss              | 3+      | Utility-first CSS framework              |
+| axios                    | 1+      | HTTP client for API calls                |
+| lucide-react             | latest  | Clean SVG icon library (replaces emojis) |
+| react-resizable-panels   | 2.1.7   | Draggable resizable panel layout         |
+| react-markdown           | latest  | Render markdown in chat messages         |
+| react-syntax-highlighter | latest  | Syntax highlighted code blocks           |
+| @tailwindcss/typography  | latest  | Prose styling for markdown content       |
 
 ## Embedding Model
 

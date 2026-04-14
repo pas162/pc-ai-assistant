@@ -98,6 +98,13 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Large PDF support — page-by-page progress reporting during extraction
 - [x] Cancel during extraction — stops immediately, cleans up files
 - [x] Windows file lock fix — delete skips file if processing, processor self-cleans on cancel
+- [x] RAG On/Off toggle per message (Database icon in chat input)
+- [x] Markdown rendering for assistant messages
+- [x] Syntax highlighted code blocks with language detection
+- [x] Copy button on code blocks (icon only, 2s feedback)
+- [x] LLM formatting rules in system prompt (code blocks, tables, bold, headers)
+- [x] Improved RAG retrieval — n_results increased from 5 to 15
+- [x] Larger chunk size (1000 chars) and overlap (150 chars) for better context
 
 ## In Progress
 
@@ -138,3 +145,6 @@ Workspaces, and chat with an AI about the attached documents.
 | PDF table extraction     | pdfplumber + PyMuPDF hybrid                  | pdfplumber detects tables, PyMuPDF handles plain text (faster)                        |
 | Cancel file cleanup      | Processor self-cleans on ExtractionCancelled | Avoids Windows file lock — delete endpoint never touches locked files                 |
 | Embedding model          | BAAI/bge-base-en-v1.5 (768d)                 | mxbai-embed-large-v1 was too slow on CPU-only i5 — bge-base is fast with good quality |
+| Markdown rendering       | react-markdown + react-syntax-highlighter    | LLM outputs markdown — frontend must render it, not display raw text                  |
+| RAG toggle               | Per-message boolean flag (use_rag)           | Allows pure LLM chat without document context, no DB change needed                    |
+| Code block styling       | Custom CodeBlock component                   | Adds language label + copy button on top of SyntaxHighlighter                         |

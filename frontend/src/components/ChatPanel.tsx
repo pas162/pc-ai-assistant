@@ -20,9 +20,13 @@ import {
   ChevronRight,
   Plus,
   Database,
+  Copy,
+  Check,
 } from "lucide-react";
 import { fetchAvailableModels } from "../api";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
 
@@ -594,6 +598,60 @@ export default function ChatPanel({
   );
 }
 
+function CodeBlock({
+  language,
+  children,
+}: {
+  language: string;
+  children: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="relative my-3 rounded-md overflow-hidden border border-zinc-600">
+      {/* Language label + copy icon only */}
+      <div
+        className="flex items-center justify-between
+                      bg-zinc-700 px-3 py-1"
+      >
+        <span className="text-xs text-zinc-400 font-mono">{language}</span>
+        <button
+          onClick={handleCopy}
+          className="text-zinc-400 hover:text-white transition-colors p-0.5 rounded"
+          title={copied ? "Copied!" : "Copy code"}
+        >
+          {copied ? (
+            <Check size={13} className="text-green-400" />
+          ) : (
+            <Copy size={13} />
+          )}
+        </button>
+      </div>
+
+      {/* Code block — no gap, shares border with header */}
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={language}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: 0,
+          border: "none", // ← border handled by wrapper div
+          fontSize: "0.82rem",
+        }}
+      >
+        {children}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
 // ── Message Bubble ────────────────────────────────────────────────────────────
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
@@ -628,8 +686,34 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           {isUser ? (
             message.content
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+            <div
+              className="prose prose-invert prose-sm max-w-none
+                            prose-p:my-1 prose-p:leading-relaxed
+                            prose-headings:mt-3 prose-headings:mb-1
+                            prose-ul:my-1 prose-ol:my-1
+                            prose-li:my-0.5"
+            >
+              <ReactMarkdown
+                components={{
+                  code({ className, children }) {
+                    const match = /language-(\w+)/.exec(className || "");
+                    return match ? (
+                      <CodeBlock language={match[1]}>
+                        {String(children).replace(/\n$/, "")}
+                      </CodeBlock>
+                    ) : (
+                      <code
+                        className="bg-zinc-700 text-zinc-200 px-1.5 py-0.5
+                                       rounded text-xs font-mono"
+                      >
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>
