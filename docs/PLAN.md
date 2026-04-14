@@ -97,6 +97,13 @@ An internal AI platform with:
 - [x] Fixed attach button — only enabled when document status is "completed"
 - [x] Fixed attach bug — tracks attaching ID instead of boolean flag
 - [x] ChromaDB batch insert (5000 per batch) to handle large documents
+- [x] PDF table extraction using pdfplumber (converts tables to markdown)
+- [x] Smart table detection — pdfplumber only runs on pages with drawing elements (10x faster)
+- [x] Page-by-page extraction progress (0% → 30%) for large PDFs
+- [x] Cancel supported during extraction via ExtractionCancelled exception
+- [x] File cleanup on cancel — processor deletes its own files after releasing lock
+- [x] Delete endpoint skips file removal if document is still processing (avoids Windows file lock)
+- [x] Safe file delete with retry logic (_safe_remove) for completed documents
 
 ### Chat UX Improvements (Completed outside sprint plan) ✅ COMPLETE
 

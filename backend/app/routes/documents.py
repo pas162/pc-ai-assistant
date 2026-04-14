@@ -1,4 +1,5 @@
 import os
+import time
 import shutil
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
@@ -58,6 +59,25 @@ def list_documents(db: Session = Depends(get_db)):
     return db.query(Document).all()
 
 
+def _safe_remove(file_path: str, retries: int = 8, delay: float = 0.5):
+    """
+    Delete a file with retry logic for Windows file locks.
+    Windows locks files when they are open by another process (e.g. pdfplumber).
+    Retries up to `retries` times, waiting `delay` seconds between attempts.
+    """
+    for attempt in range(retries):
+        try:
+            os.remove(file_path)
+            return  # ✅ success
+        except PermissionError:
+            if attempt < retries - 1:
+                print(f"[Delete] File locked, retrying ({attempt + 1}/{retries})...")
+                time.sleep(delay)
+            else:
+                print(f"[Delete] Could not delete file after {retries} attempts: {file_path}")
+                raise  # re-raise on final attempt so caller knows it failed
+
+
 @router.delete("/{document_id}")
 def delete_document(document_id: str, db: Session = Depends(get_db)):
     """
@@ -70,19 +90,21 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Step 2: Delete the physical file from disk
-    file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-    # ADD THIS: Also delete the cache file if it exists!
-    cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
-    if os.path.exists(cache_path):
-        os.remove(cache_path)
-
-    # Step 3: Delete the database record
-    # PostgreSQL CASCADE will automatically clean up workspace_documents links
+    is_processing = document.status in ("pending", "processing")
+    # Step 2: Delete the database record FIRST
+    # This acts as the cancel signal for the background processor
     db.delete(document)
     db.commit()
+
+    # Step 3: Only delete files immediately if NOT being processed
+    # If processing, the background processor will clean up its own files
+    if not is_processing:
+        file_path = os.path.join(UPLOAD_DIR, f"{document.id}_{document.filename}")
+        if os.path.exists(file_path):
+            _safe_remove(file_path)
+
+        cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
+        if os.path.exists(cache_path):
+            _safe_remove(cache_path)
 
     return {"message": f"Document '{document.filename}' deleted successfully"}
