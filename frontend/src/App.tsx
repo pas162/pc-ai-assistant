@@ -40,6 +40,13 @@ function App() {
     setShowSettings(false);
   };
 
+  const handleWorkspaceDeleted = (deletedId: string) => {
+    // If the deleted workspace is currently open — clear it
+    if (selectedWorkspace?.id === deletedId) {
+            setSelectedWorkspace(null);
+    }
+  };
+
   const handleSessionChange = (workspaceId: string, sessionId: string) => {
     setActiveSessionIds((prev) => ({ ...prev, [workspaceId]: sessionId }));
   };
@@ -145,6 +152,7 @@ function App() {
             <WorkspaceList
               selectedWorkspaceId={selectedWorkspace?.id ?? null}
               onSelectWorkspace={handleSelectWorkspace}
+              onWorkspaceDeleted={handleWorkspaceDeleted}
               showToast={showToast}
             />
             <div className="p-3 border-t border-gray-700">

@@ -8,15 +8,18 @@ import {
 import type { Workspace } from "../api";
 import type { ToastType } from "../hooks/useToast";
 import { FolderOpen, MoreVertical, Pencil, Trash2, Plus } from "lucide-react";
+
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
   onSelectWorkspace: (workspace: Workspace) => void;
+  onWorkspaceDeleted: (deletedId: string) => void;
   showToast: (message: string, type: ToastType) => void;
 }
 
 export default function WorkspaceList({
   selectedWorkspaceId,
   onSelectWorkspace,
+  onWorkspaceDeleted,
   showToast,
 }: WorkspaceListProps) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -115,6 +118,7 @@ export default function WorkspaceList({
       await deleteWorkspace(ws.id);
       setOpenMenuId(null);
       await fetchWorkspaces();
+      onWorkspaceDeleted(ws.id);
       showToast("Workspace deleted", "info");
     } catch {
       showToast("Failed to delete workspace", "error");
