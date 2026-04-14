@@ -97,35 +97,56 @@ export default function WorkspaceDetail({
   return (
     <div className="flex flex-col h-full bg-gray-950">
       {/* ── Header + Tabs ─────────────────────────────────────────────────── */}
-      <div className="px-8 pt-1 pb-0 border-b border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-100">{workspace.name}</h2>
-        {workspace.description && (
-          <p className="text-gray-400 text-sm mt-1">{workspace.description}</p>
-        )}
-        <div className="flex gap-1 mt-4">
+      <div className="px-4 border-b border-gray-700 flex items-center gap-4 shrink-0">
+        {/* Workspace name + description */}
+        <div className="flex items-center gap-2 py-2 shrink-0">
+          <h2 className="text-sm font-semibold text-gray-100">
+            {workspace.name}
+          </h2>
+          {workspace.description && (
+            <span
+              className="text-xs text-gray-600 bg-gray-800
+                             px-2 py-0.5 rounded-full border border-gray-700
+                             max-w-50 truncate"
+              title={workspace.description}
+            >
+              {workspace.description}
+            </span>
+          )}
+        </div>
+
+        {/* Divider */}
+        <span className="text-gray-700 text-lg">|</span>
+
+        {/* Tabs — inline with the header */}
+        <div className="flex gap-1">
           <button
             onClick={() => setActiveTab("chat")}
-            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors
+            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
               ${
                 activeTab === "chat"
-                  ? "bg-gray-900 border border-b-gray-900 border-gray-700 text-blue-400 -mb-px"
-                  : "text-gray-500 hover:text-gray-300"
+                  ? "border-blue-500 text-blue-400"
+                  : "border-transparent text-gray-500 hover:text-gray-300"
               }`}
           >
             Chat
           </button>
           <button
             onClick={() => setActiveTab("documents")}
-            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors
+            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
+              flex items-center gap-1.5
               ${
                 activeTab === "documents"
-                  ? "bg-gray-900 border border-b-gray-900 border-gray-700 text-blue-400 -mb-px"
-                  : "text-gray-500 hover:text-gray-300"
+                  ? "border-blue-500 text-blue-400"
+                  : "border-transparent text-gray-500 hover:text-gray-300"
               }`}
           >
             Documents
             {attachedDocs.length > 0 && (
-              <span className="ml-2 bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">
+              <span
+                className="bg-gray-700 text-gray-300 text-xs
+                               px-1.5 py-0.5 rounded-full leading-none"
+              >
                 {attachedDocs.length}
               </span>
             )}

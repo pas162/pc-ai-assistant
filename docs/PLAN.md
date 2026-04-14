@@ -85,6 +85,13 @@ An internal AI platform with:
 - [x] Smaller chat session title font size (text-xs)
 - [x] Custom slim scrollbar (4px pill, dark theme, horizontal + vertical)
 - [x] Unified chat input area (textarea + model selector + send button in one card)
+- [x] Compact chat input area (auto-resize textarea, transparent model selector)
+- [x] Icon-only send/stop buttons (flat, no background)
+- [x] Compact navbar (h-10, smaller icons, workspace description pill)
+- [x] Compact workspace header — name + description + tabs in single row
+- [x] Tab style changed to bottom-border indicator (cleaner than box tabs)
+- [x] Source citations under last assistant message (document filenames)
+- [x] Stop streaming button (AbortController, replaces send during generation)
 
 ### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
 
@@ -103,7 +110,7 @@ An internal AI platform with:
 - [x] Cancel supported during extraction via ExtractionCancelled exception
 - [x] File cleanup on cancel — processor deletes its own files after releasing lock
 - [x] Delete endpoint skips file removal if document is still processing (avoids Windows file lock)
-- [x] Safe file delete with retry logic (_safe_remove) for completed documents
+- [x] Safe file delete with retry logic (\_safe_remove) for completed documents
 - [x] Embedding model switched to BAAI/bge-base-en-v1.5 (768d, ~400MB RAM, fast on CPU)
 - [x] reset_vectors.py utility script to wipe ChromaDB + .pkl cache on model change
 

@@ -59,43 +59,67 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       {/* ── TOP NAVBAR ──────────────────────────────────────────── */}
-      <div className="h-12 bg-gray-900 border-b border-gray-700 flex items-center px-4 gap-3 shrink-0">
-        <button
-          onClick={() => setSidebarOpen((prev) => !prev)}
-          className="text-gray-400 hover:text-white transition-colors p-1.5
-                     rounded hover:bg-gray-700"
-          title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
-        >
-          {sidebarOpen ? (
-            <PanelLeftClose size={18} />
-          ) : (
-            <PanelLeftOpen size={18} />
-          )}
-        </button>
-
-        <span className="text-white font-bold text-sm">PC AI Assistant</span>
-        <span className="text-gray-600">|</span>
-        <span className="text-gray-300 text-sm">{breadcrumb}</span>
-
-        <div className="ml-auto">
+      <div
+        className="h-10 bg-gray-900 border-b border-gray-700
+                      flex items-center px-3 shrink-0 gap-2"
+      >
+        {/* Left — sidebar toggle + app title */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => {
-              setShowSettings((prev) => !prev);
-              setSelectedWorkspace(null);
-            }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm
-                        transition-colors
-                        ${
-                          showSettings
-                            ? "bg-blue-600 text-white"
-                            : "text-gray-400 hover:text-white hover:bg-gray-700"
-                        }`}
-            title="Settings"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            className="text-gray-500 hover:text-white transition-colors p-1
+                     rounded hover:bg-gray-700"
+            title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
           >
-            <SettingsIcon size={16} />
-            <span>Settings</span>
+            {sidebarOpen ? (
+              <PanelLeftClose size={16} />
+            ) : (
+              <PanelLeftOpen size={16} />
+            )}
           </button>
+          <span className="text-white font-semibold text-sm">
+            PC AI Assistant
+          </span>
         </div>
+
+        {/* Divider */}
+        <span className="text-gray-700">|</span>
+
+        {/* Middle — breadcrumb + context actions */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="text-gray-300 text-sm truncate">{breadcrumb}</span>
+
+          {/* Context actions — only show when workspace is open */}
+          {selectedWorkspace && !showSettings && (
+            <div className="flex items-center gap-1 ml-2">
+              <span
+                className="text-xs text-gray-600 bg-gray-800
+                               px-2 py-0.5 rounded-full border border-gray-700"
+              >
+                {selectedWorkspace.description || "No description"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right — settings */}
+        <button
+          onClick={() => {
+            setShowSettings((prev) => !prev);
+            setSelectedWorkspace(null);
+          }}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs
+                      transition-colors shrink-0
+                      ${
+                        showSettings
+                          ? "bg-blue-600 text-white"
+                          : "text-gray-400 hover:text-white hover:bg-gray-700"
+                      }`}
+          title="Settings"
+        >
+          <SettingsIcon size={14} />
+          <span>Settings</span>
+        </button>
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────── */}

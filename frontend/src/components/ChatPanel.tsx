@@ -547,37 +547,48 @@ export default function ChatPanel({
               </div>
 
               <div className="border-t border-gray-700 p-3">
-                {/* Unified container */}
                 <div
                   className="flex flex-col bg-gray-800 border border-gray-600
-                                rounded-xl focus-within:border-blue-500
-                                transition-colors"
+                              rounded-xl focus-within:border-blue-500
+                              transition-colors"
                 >
-                  {/* Textarea */}
+                  {/* Textarea — single row, expands on typing */}
                   <textarea
                     value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
+                    onChange={(e) => {
+                      setQuestion(e.target.value);
+                      // Auto-resize: reset then grow
+                      e.target.style.height = "auto";
+                      e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                    }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask a question... (Enter to send, Shift+Enter for new line)"
-                    rows={2}
+                    placeholder="Ask a question..."
+                    rows={1}
                     disabled={loading}
                     className="flex-1 resize-none bg-transparent border-none
-                               px-4 pt-3 pb-1 text-sm text-gray-200
+                               px-3 pt-2.5 pb-2 text-sm text-gray-200
                                placeholder-gray-500 focus:outline-none
-                               disabled:opacity-50"
+                               disabled:opacity-50 overflow-y-auto
+                               min-h-9 max-h-30"
+                    style={{ height: "36px" }}
                   />
 
                   {/* Bottom bar */}
-                  <div className="flex items-center justify-between px-3 pb-2 pt-1">
-                    <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center justify-between
+                                  px-2 pb-2 pt-0 gap-2"
+                  >
+                    {/* Left — model selector + RAG toggle */}
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <select
                         value={selectedModel}
                         onChange={(e) => setSelectedModel(e.target.value)}
                         disabled={modelsLoading}
-                        className="bg-gray-700 text-gray-400 text-xs border border-gray-600
-                                 rounded-lg px-2 py-1 focus:outline-none focus:ring-1
-                                 focus:ring-blue-500 disabled:opacity-50
-                                 disabled:cursor-wait max-w-52"
+                        className="bg-transparent text-gray-500 text-xs
+                                   border-none focus:outline-none
+                                   disabled:opacity-50 disabled:cursor-wait
+                                   max-w-40 truncate cursor-pointer
+                                   hover:text-gray-300 transition-colors"
                       >
                         {modelsLoading ? (
                           <option>Loading...</option>
@@ -590,6 +601,8 @@ export default function ChatPanel({
                         )}
                       </select>
 
+                      <span className="text-gray-700 text-xs">|</span>
+
                       <button
                         onClick={() => setUseRag(!useRag)}
                         title={
@@ -597,26 +610,24 @@ export default function ChatPanel({
                             ? "RAG enabled — click to disable"
                             : "RAG disabled — click to enable"
                         }
-                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs
-                                   font-medium transition-colors ${
-                                     useRag
-                                       ? "bg-blue-600 text-white hover:bg-blue-700"
-                                       : "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
-                                   }`}
+                        className={`text-xs transition-colors shrink-0 ${
+                          useRag
+                            ? "text-blue-400 hover:text-blue-300"
+                            : "text-gray-600 hover:text-gray-400"
+                        }`}
                       >
-                        <Database size={12} />
-                        {useRag ? "RAG On" : "RAG Off"}
+                        <Database size={13} />
                       </button>
                     </div>
 
-                    {/* Icon-only Send / Stop button */}
+                    {/* Right — Stop or Send */}
                     {loading ? (
                       <button
                         onClick={handleStop}
                         title="Stop generating"
-                        className="w-7 h-7 flex items-center justify-center
-                                   bg-red-600 hover:bg-red-700 text-white
-                                   rounded-lg transition-colors"
+                        className="w-6 h-6 flex items-center justify-center
+                                   text-red-400 hover:text-red-300
+                                   transition-colors shrink-0"
                       >
                         <StopCircle size={15} />
                       </button>
@@ -625,10 +636,10 @@ export default function ChatPanel({
                         onClick={handleSend}
                         disabled={!question.trim()}
                         title="Send message"
-                        className="w-7 h-7 flex items-center justify-center
-                                   bg-blue-600 hover:bg-blue-700
-                                   disabled:bg-gray-700 disabled:text-gray-500
-                                   text-white rounded-lg transition-colors"
+                        className="w-6 h-6 flex items-center justify-center
+                                   text-blue-400 hover:text-blue-300
+                                   disabled:text-gray-600
+                                   transition-colors shrink-0"
                       >
                         <Send size={14} />
                       </button>

@@ -105,6 +105,12 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] LLM formatting rules in system prompt (code blocks, tables, bold, headers)
 - [x] Improved RAG retrieval — n_results increased from 5 to 15
 - [x] Larger chunk size (1000 chars) and overlap (150 chars) for better context
+- [x] Compact chat input — auto-resize textarea, transparent model selector
+- [x] Icon-only send/stop buttons
+- [x] Stop streaming mid-response (AbortController)
+- [x] Source citations under assistant messages (filename pills)
+- [x] Compact navbar with workspace description pill
+- [x] Workspace header + tabs collapsed into single row
 
 ## In Progress
 
