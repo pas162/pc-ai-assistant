@@ -132,7 +132,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         <div>
           <h2 className="text-2xl font-bold text-gray-100">Knowledge Base</h2>
           <p className="text-gray-400 text-sm mt-1">
-            Central repository for all your AI documents.
+            Supports PDF, DOCX, TXT, MD, XLSX.
           </p>
         </div>
 
@@ -141,7 +141,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
           ref={fileInputRef}
           onChange={handleFileChange}
           className="hidden"
-          accept=".pdf,.txt,.docx,.md"
+          accept=".pdf,.txt,.docx,.md,.xlsx"
         />
         <button
           onClick={() => fileInputRef.current?.click()}

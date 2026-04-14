@@ -39,10 +39,12 @@
 
 ## Embedding Model
 
-- **Model:** `all-MiniLM-L6-v2` (currently for testing)
-- **Planned upgrade:** `multi-qa-mpnet-base-dot-v1` (for production)
-- **Vector dimensions:** 384 (current) → 768 (planned)
-- **Runs locally** — no API calls needed for embeddings
+- **Model:** `BAAI/bge-base-en-v1.5`
+- **Vector dimensions:** 768
+- **RAM usage:** ~400MB
+- **Runs locally** — no API calls needed
+- **Optimized for:** Technical docs, code, tables, Q&A retrieval
+- **MTEB Score:** 63.56 (best speed/quality tradeoff on CPU-only hardware)
 - **Cached at:** `C:\Users\{user}\.cache\huggingface\hub\`
 
 ## Database Schema (PostgreSQL)
@@ -105,4 +107,5 @@ Chat Sessions belong to a Workspace and contain many Messages.
 ## Document Processing Pipeline
 
 When a file is uploaded, processing happens **in the background** (FastAPI `BackgroundTasks`).
+The frontend polls `GET /documents` every 2 seconds to show live progress.
 The frontend polls `GET /documents` every 2 seconds to show live progress.

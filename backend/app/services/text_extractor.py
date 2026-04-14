@@ -1,6 +1,7 @@
 import fitz        # PyMuPDF — for regular text extraction
 import pdfplumber  # for table extraction
 import docx  # python-docx
+import openpyxl
 import os
 from typing import Callable, Optional
 
@@ -24,6 +25,8 @@ def extract_text(
         return _extract_from_docx(file_path)
     elif file_type in ("txt", "md", "csv"):
         return _extract_from_txt(file_path)
+    elif file_type in ("xlsx", "xls"):
+        return _extract_from_excel(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
@@ -140,3 +143,66 @@ def _extract_from_txt(file_path: str) -> str:
     except UnicodeDecodeError:
         with open(file_path, "r", encoding="latin-1") as f:
             return f.read()
+
+
+def _extract_from_excel(file_path: str) -> str:
+    """
+    Extract text from an Excel file using openpyxl.
+
+    Strategy:
+    - Loop through every sheet
+    - Convert each sheet's data to a markdown table
+    - Label each sheet clearly so the LLM knows which sheet data came from
+
+    Example output:
+        [Sheet: Product List]
+        | ID | Name  | Price |
+        |----|-------|-------|
+        | 1  | ItemA | 100   |
+    """
+    workbook = openpyxl.load_workbook(file_path, data_only=True)
+    # data_only=True → reads cell VALUES not formulas
+    # e.g. cell with =SUM(A1:A10) returns 550, not the formula string
+
+    sheet_parts = []
+
+    for sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
+
+        # Skip completely empty sheets
+        if sheet.max_row == 0 or sheet.max_column == 0:
+            continue
+
+        # Read all rows, convert None cells to empty string
+        rows = []
+        for row in sheet.iter_rows(values_only=True):
+            # Skip rows that are entirely empty
+            if all(cell is None for cell in row):
+                continue
+            clean_row = [str(cell).strip() if cell is not None else "" for cell in row]
+            rows.append(clean_row)
+
+        if not rows:
+            continue
+
+        # Convert to markdown table
+        # First row = header
+        md_rows = []
+        md_rows.append("| " + " | ".join(rows[0]) + " |")
+        md_rows.append("|" + "|".join(["---"] * len(rows[0])) + "|")
+
+        for row in rows[1:]:
+            # Pad row if it has fewer columns than header
+            while len(row) < len(rows[0]):
+                row.append("")
+            md_rows.append("| " + " | ".join(row) + " |")
+
+        sheet_text = f"[Sheet: {sheet_name}]\n" + "\n".join(md_rows)
+        sheet_parts.append(sheet_text)
+
+        print(f"[Extractor] Excel sheet '{sheet_name}': {len(rows)} rows extracted")
+
+    if not sheet_parts:
+        return ""
+
+    return "\n\n".join(sheet_parts)

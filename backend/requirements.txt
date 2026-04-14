@@ -23,5 +23,6 @@ python-multipart==0.0.24
 PyMuPDF==1.27.2.2       # Extract text from PDF files (non-table content)
 python-docx==1.2.0      # Extract text from DOCX files
 pdfplumber==0.11.4      # Table extraction from PDF files
+openpyxl==3.1.5         # Extract text from Excel files (.xlsx)
 
 sentence-transformers==5.3.0

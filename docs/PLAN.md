@@ -104,6 +104,8 @@ An internal AI platform with:
 - [x] File cleanup on cancel — processor deletes its own files after releasing lock
 - [x] Delete endpoint skips file removal if document is still processing (avoids Windows file lock)
 - [x] Safe file delete with retry logic (_safe_remove) for completed documents
+- [x] Embedding model switched to BAAI/bge-base-en-v1.5 (768d, ~400MB RAM, fast on CPU)
+- [x] reset_vectors.py utility script to wipe ChromaDB + .pkl cache on model change
 
 ### Chat UX Improvements (Completed outside sprint plan) ✅ COMPLETE
 

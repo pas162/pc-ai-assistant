@@ -9,6 +9,8 @@ from app.schemas.document import DocumentResponse
 from app.services.document_processor import process_document
 router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = "uploaded_docs"
+ALLOWED_EXTENSIONS = {"pdf", "txt", "md", "csv", "docx", "xlsx"}
+
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
@@ -23,10 +25,18 @@ async def upload_document(
     Returns immediately with status="pending".
     Processing (extract → chunk → embed) runs in the background.
     """
+    # 0. Validate file type before doing anything
+    file_type = file.filename.split(".")[-1].lower() if "." in file.filename else "unknown"
+    if file_type not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '.{file_type}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+
     # 1. Create the database record FIRST to get the UUID
     db_document = Document(
         filename=file.filename,
-        file_type=file.filename.split(".")[-1].lower() if "." in file.filename else "unknown",
+        file_type=file_type,
         status="pending"
     )
     db.add(db_document)

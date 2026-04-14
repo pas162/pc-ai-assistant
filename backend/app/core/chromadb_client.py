@@ -3,6 +3,8 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
+EMBEDDING_DIM = 768  # was: 1024
+
 
 def get_chroma_client():
     """
