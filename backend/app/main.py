@@ -8,6 +8,7 @@ from app.routes import chat
 from app.routes import chat_sessions
 from app.routes import models
 from app.routes import settings
+from app.routes import folders
 from app.core.database import get_db_direct
 from app.core.seed_settings import seed_default_settings
 
@@ -35,6 +36,7 @@ app.include_router(chat.router)
 app.include_router(chat_sessions.router)
 app.include_router(models.router, prefix="/models", tags=["models"])
 app.include_router(settings.router, prefix="/settings", tags=["settings"])
+app.include_router(folders.router)
 
 @app.on_event("startup")
 def on_startup():

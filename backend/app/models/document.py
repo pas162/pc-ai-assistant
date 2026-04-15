@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Text, DateTime, Integer, ForeignKey
+from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.models.workspace import Workspace
@@ -42,6 +42,11 @@ class Document(Base):
         DateTime,
         default=datetime.utcnow
     )
+
+    # WHY nullable=True? Existing documents have no folder.
+    # They will show at root level (Option A decision).
+    # New uploads can optionally belong to a folder.
+    folder_path = Column(String, nullable=True, default=None)
 
     # A document can be linked to many workspaces
     workspaces: Mapped[list["Workspace"]] = relationship(

@@ -139,3 +139,22 @@ An internal AI platform with:
 - [x] seed_settings.py seeds default values on app startup
 - [x] Actionable error message when token is not configured
 - [x] .env reduced to infrastructure-only (DB credentials, ports)
+
+### Knowledge Base Folder Structure (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] folders table + Alembic migration
+- [x] folder_path column on documents table + Alembic migration
+- [x] POST /folders — create empty folder (validates parent exists)
+- [x] GET /folders — flat list (frontend builds tree)
+- [x] DELETE /folders/{id} — cascade delete nested folders + documents + vectors
+- [x] Folder tree UI in KnowledgeBase.tsx (FolderTree, FolderNode, DocumentRow components)
+- [x] Upload files into selected folder (per-folder upload button)
+- [x] Upload folder via webkitdirectory (preserves real path structure)
+- [x] Auto-create intermediate folders on folder upload
+- [x] Code file types added to ALLOWED_EXTENSIONS and text_extractor.py
+- [x] Filename prepended to extracted content for code files (LLM context)
+- [x] os.path.basename fix — strips relative path from filename on folder upload
+- [x] Bulk attach modal — folder tree with checkboxes (indeterminate state)
+- [x] POST /workspaces/{id}/documents/bulk endpoint
+- [x] Workspace documents tab replaced with folder tree view
+- [x] Route order fix — /bulk declared before /{document_id} to prevent conflict

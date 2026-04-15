@@ -16,6 +16,7 @@ export interface Document {
   status: string;
   progress: number;
   created_at: string;
+  folder_path: string | null; // ← ADD
 }
 
 export interface Workspace {
@@ -73,15 +74,20 @@ export const getDocuments = async (): Promise<Document[]> => {
 // POST /documents — upload a new file with progress reporting
 export const uploadDocument = async (
   file: File,
-  onProgress?: (percent: number) => void, // ← new optional param
+  onProgress?: (percent: number) => void,
+  folderPath?: string, // ← ADD
 ): Promise<Document> => {
   const formData = new FormData();
   formData.append("file", file);
 
+  // WHY append only if defined? Sending an empty folder_path string
+  // would fail the backend's folder existence check.
+  if (folderPath) {
+    formData.append("folder_path", folderPath);
+  }
+
   const response = await api.post("/documents", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+    headers: { "Content-Type": "multipart/form-data" },
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percent = Math.round(
@@ -114,6 +120,49 @@ export const unlinkDocumentFromWorkspace = async (
   documentId: string,
 ): Promise<void> => {
   await api.delete(`/workspaces/${workspaceId}/documents/${documentId}`);
+};
+
+// POST /workspaces/{id}/documents/bulk
+export const bulkLinkDocumentsToWorkspace = async (
+  workspaceId: string,
+  documentIds: string[],
+): Promise<{ attached: string[]; skipped: number; failed: number }> => {
+  const response = await api.post(`/workspaces/${workspaceId}/documents/bulk`, {
+    document_ids: documentIds,
+  });
+  return response.data;
+};
+
+// ─── Folder API calls ──────────────────────────────────
+
+export interface Folder {
+  id: string;
+  name: string;
+  path: string;
+  created_at: string;
+}
+
+// GET /folders — fetch all folders (flat list, frontend builds tree)
+export const getFolders = async (): Promise<Folder[]> => {
+  const response = await api.get("/folders");
+  return response.data;
+};
+
+// POST /folders — create a new folder
+export const createFolder = async (
+  name: string,
+  parentPath: string | null,
+): Promise<Folder> => {
+  const response = await api.post("/folders", {
+    name,
+    parent_path: parentPath,
+  });
+  return response.data;
+};
+
+// DELETE /folders/:id — delete folder + all nested contents
+export const deleteFolder = async (id: string): Promise<void> => {
+  await api.delete(`/folders/${id}`);
 };
 
 // ─── Chat API calls ────────────────────────────────────

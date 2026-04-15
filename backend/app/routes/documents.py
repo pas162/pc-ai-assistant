@@ -1,15 +1,23 @@
 import os
 import time
 import shutil
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
 from app.services.document_processor import process_document
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = "uploaded_docs"
-ALLOWED_EXTENSIONS = {"pdf", "txt", "md", "csv", "docx", "xlsx"}
+ALLOWED_EXTENSIONS = {
+    # Documents (existing)
+    "pdf", "txt", "md", "csv", "docx", "xlsx",
+    # Code files (new)
+    "py", "java", "js", "ts", "html", "css",
+    "json", "yaml", "yml", "xml", "mdf",
+    "sql", "sh", "bat", "cs", "cpp", "c", "h"
+}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -18,39 +26,57 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    folder_path: str | None = Form(default=None)
 ):
     """
     Upload a new document to the central Knowledge Base.
     Returns immediately with status="pending".
     Processing (extract → chunk → embed) runs in the background.
     """
-    # 0. Validate file type before doing anything
-    file_type = file.filename.split(".")[-1].lower() if "." in file.filename else "unknown"
+    # WHY os.path.basename? When uploading a folder, the browser sends
+    # file.filename as the full relative path e.g. "src/com/example/Main.java"
+    # We only want "Main.java" as the stored filename.
+    # The folder information is already captured in folder_path separately.
+    clean_filename = os.path.basename(file.filename.replace("\\", "/"))
+    # 0. Validate file type
+    file_type = clean_filename.split(".")[-1].lower() if "." in clean_filename else "unknown"
     if file_type not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported file type '.{file_type}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
         )
 
-    # 1. Create the database record FIRST to get the UUID
+    # 0b. Validate folder_path exists if provided
+    if folder_path:
+        from app.models.folder import Folder
+        folder = db.query(Folder).filter(Folder.path == folder_path).first()
+        if not folder:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Folder '{folder_path}' not found"
+            )
+
+    # 1. Create DB record using clean filename
     db_document = Document(
-        filename=file.filename,
+        filename=clean_filename,        # ← clean name only, no path
         file_type=file_type,
-        status="pending"
+        status="pending",
+        folder_path=folder_path
     )
     db.add(db_document)
     db.flush()
-    # 2. Save the physical file using the new Document ID
-    safe_filename = f"{db_document.id}_{file.filename}"
+
+    # 2. Save physical file using clean filename
+    safe_filename = f"{db_document.id}_{clean_filename}"
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
-    
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     # 3. Update the file size now that it's saved
     db_document.file_size = os.path.getsize(file_path)
-    
+
     # 4. Commit everything
     db.commit()
     db.refresh(db_document)

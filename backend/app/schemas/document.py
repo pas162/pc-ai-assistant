@@ -14,8 +14,7 @@ class DocumentResponse(BaseModel):
     status: str
     progress: int = 0
     created_at: datetime
+    folder_path: str | None = None
 
-    class Config:
-        from_attributes = True  # Allows reading from SQLAlchemy model (like Jackson in Java)
     class Config:
         from_attributes = True  # Allows reading from SQLAlchemy model (like Jackson in Java)

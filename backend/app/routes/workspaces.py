@@ -105,6 +105,74 @@ def delete_workspace(workspace_id: str, db: Session = Depends(get_db)):
     return {"message": "Workspace and all associated chat sessions deleted successfully"}
 
 
+@router.post("/{workspace_id}/documents/bulk")
+def bulk_link_documents_to_workspace(
+    workspace_id: str,
+    body: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Attach multiple documents to a workspace in one request.
+    Skips already-attached docs and not-ready docs silently.
+    Returns a summary of what was attached vs skipped.
+    """
+    document_ids: list = body.get("document_ids", [])
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    attached = []
+    skipped  = []
+    failed   = []
+
+    for document_id in document_ids:
+        document = db.query(Document).filter(Document.id == document_id).first()
+
+        # Skip missing or already attached
+        if not document:
+            skipped.append(document_id)
+            continue
+        if document in workspace.documents:
+            skipped.append(document_id)
+            continue
+        if document.status != "completed":
+            skipped.append(document_id)
+            continue
+
+        # Link in DB
+        workspace.documents.append(document)
+        db.commit()
+
+        # Load cache → store vectors
+        try:
+            cache_path = os.path.join(UPLOAD_DIR, f"{document.id}_cache.pkl")
+            if not os.path.exists(cache_path):
+                raise ValueError("Cache file not found")
+
+            with open(cache_path, "rb") as f:
+                cached_data = pickle.load(f)
+
+            store_document_vectors(
+                document_id=document_id,
+                workspace_id=workspace_id,
+                chunks=cached_data["chunks"],
+                embeddings=cached_data["embeddings"]
+            )
+            attached.append(document.filename)
+
+        except Exception as e:
+            print(f"[BulkAttach] Failed for {document_id}: {e}")
+            workspace.documents.remove(document)
+            db.commit()
+            failed.append(document_id)
+
+    return {
+        "attached": attached,
+        "skipped":  len(skipped),
+        "failed":   len(failed)
+    }
+
 @router.post("/{workspace_id}/documents/{document_id}")
 def link_document_to_workspace(
     workspace_id: str,
@@ -204,3 +272,4 @@ def unlink_document_from_workspace(
         print(f"  Warning: Could not delete vectors: {str(e)}")
 
     return {"message": f"Successfully removed '{document.filename}' from '{workspace.name}'"}
+

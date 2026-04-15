@@ -5,6 +5,14 @@ import openpyxl
 import os
 from typing import Callable, Optional
 
+_PLAIN_TEXT_TYPES = {
+    # Original plain text
+    "txt", "md", "csv",
+    # Code files — all are plain text, no special parsing needed
+    "py", "java", "js", "ts", "html", "css",
+    "json", "yaml", "yml", "xml", "mdf",
+    "sql", "sh", "bat", "cs", "cpp", "c", "h"
+}
 
 class ExtractionCancelled(Exception):
     """Raised when the caller signals cancellation via on_progress callback."""
@@ -23,10 +31,10 @@ def extract_text(
         return _extract_from_pdf(file_path, on_progress)
     elif file_type == "docx":
         return _extract_from_docx(file_path)
-    elif file_type in ("txt", "md", "csv"):
-        return _extract_from_txt(file_path)
     elif file_type in ("xlsx", "xls"):
         return _extract_from_excel(file_path)
+    elif file_type in _PLAIN_TEXT_TYPES:
+        return _extract_from_txt(file_path)
     else:
         raise ValueError(f"Unsupported file type: {file_type}")
 
@@ -131,18 +139,20 @@ def _extract_from_docx(file_path: str) -> str:
 
 
 def _extract_from_txt(file_path: str) -> str:
-    """
-    Extract text from a plain text file.
-    Simple file read — no special library needed.
-    """
-    # Try UTF-8 first, fall back to latin-1 if it fails
-    # (some files have special characters that break UTF-8)
+    # WHY include filename? For code files, the filename carries meaning.
+    # "UserController.java" tells the LLM this is a Spring controller.
+    # Without it, the LLM sees raw code with no context about what file it came from.
+    filename = os.path.basename(file_path)
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
+            content = f.read()
     except UnicodeDecodeError:
         with open(file_path, "r", encoding="latin-1") as f:
-            return f.read()
+            content = f.read()
+
+    # Prepend filename as a header so LLM knows the source
+    return f"[File: {filename}]\n\n{content}"
 
 
 def _extract_from_excel(file_path: str) -> str:

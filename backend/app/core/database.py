@@ -2,16 +2,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.core.config import get_settings
 
-# Get our settings (reads from .env)
 settings = get_settings()
 
-# Create the database engine
 engine = create_engine(
     settings.database_url,
-    echo=True  # logs all SQL queries (useful for learning/debugging)
+    echo=True
 )
 
-# SessionLocal is a factory that creates database sessions
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -19,27 +16,23 @@ SessionLocal = sessionmaker(
 )
 
 
-# Base class for all our models
 class Base(DeclarativeBase):
     pass
 
 
 def get_db():
-    """
-    Creates a database session for each request.
-    Automatically closes it when the request is done.
-    """
     db = SessionLocal()
     try:
-        yield db        # give the session to the route handler
+        yield db
     finally:
-        db.close()      # always close, even if an error occurs
-
-
+        db.close()
 def get_db_direct():
-    """
-    Returns a plain DB session for use outside of FastAPI request context.
-    Caller is responsible for calling db.close().
-    Used by llm_client.py to read settings without a request context.
-    """
     return SessionLocal()
+
+
+def init_db():
+    # WHY only create_all here?
+    # Alembic owns all schema changes (CREATE TABLE, ALTER TABLE).
+    # create_all is kept only as a safety net for local dev from scratch.
+    # It will NOT override existing tables — safe to keep.
+    Base.metadata.create_all(bind=engine)

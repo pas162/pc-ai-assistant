@@ -111,6 +111,19 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Source citations under assistant messages (filename pills)
 - [x] Compact navbar with workspace description pill
 - [x] Workspace header + tabs collapsed into single row
+- [x] Folder structure in Knowledge Base (unlimited nesting)
+- [x] Create empty folder manually anywhere in tree
+- [x] Upload files into a selected folder
+- [x] Upload entire folder (webkitdirectory — preserves real folder structure)
+- [x] Folder tree UI in Knowledge Base (expand/collapse, per-folder upload/delete)
+- [x] Delete folder cascades to all nested folders + documents + vectors
+- [x] Root-level documents (folder_path = null) shown at tree root
+- [x] Code file support: .java, .py, .js, .ts, .xml, .mdf, .json, .yaml, .sql, .sh and more
+- [x] Bulk attach documents to workspace (checkbox tree with folder selection)
+- [x] Folder tree in workspace attach modal (indeterminate checkbox for partial selection)
+- [x] Folder tree in workspace documents tab (shows attached docs organized by folder)
+- [x] folder_path column added to documents table (Alembic migration)
+- [x] folders table added to PostgreSQL (Alembic migration)
 
 ## In Progress
 
@@ -127,30 +140,33 @@ Workspaces, and chat with an AI about the attached documents.
 
 ## Important Technical Decisions
 
-| Decision                 | Choice                                       | Reason                                                                                |
-| ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Document ownership       | Many-to-Many                                 | Upload once, use in many workspaces                                                   |
-| Embedding model          | Local sentence-transformers                  | LLM API doesn't support embeddings                                                    |
-| UUID vs Integer IDs      | UUID                                         | Better for distributed systems                                                        |
-| File naming              | {uuid}\_{filename}                           | Prevents name collisions                                                              |
-| Chat persistence         | PostgreSQL                                   | Full history replay to LLM                                                            |
-| Processing trigger       | FastAPI BackgroundTasks                      | Returns upload response instantly                                                     |
-| Embedding storage        | .pkl cache file on disk                      | Attach to workspace is instant, no recompute                                          |
-| Progress tracking        | PostgreSQL progress column                   | Simple polling, no WebSockets needed                                                  |
-| Icon library             | lucide-react                                 | Consistent SVG icons, no emoji rendering bugs                                         |
-| ChromaDB batching        | 5000 vectors per upsert                      | ChromaDB hard limit is 5461                                                           |
-| Session title            | LLM few-shot auto-generation                 | Better UX than manual naming every session                                            |
-| Chat state on tab switch | CSS hidden (not unmount)                     | Preserves session without re-fetching                                                 |
-| Session memory           | Record<wsId, sessionId> in App               | Survives workspace switching                                                          |
-| Model selection          | Backend proxy GET /models                    | Bearer token stays server-side, never exposed in browser                              |
-| LLM config storage       | PostgreSQL settings table                    | Team members update token via UI, no server file access needed                        |
-| .env scope               | Infrastructure only (DB, ports)              | LLM settings in DB so team can self-serve without touching server                     |
-| Settings seeding         | seed_settings.py on startup                  | Safe to run every boot — never overwrites existing values                             |
-| Resizable panels         | react-resizable-panels v2.1.7                | Production-ready, localStorage persistence, imperative collapse API                   |
-| Panel collapse           | ImperativePanelHandle + collapsible=true     | Programmatic collapse to zero, synced with toggle button                              |
-| PDF table extraction     | pdfplumber + PyMuPDF hybrid                  | pdfplumber detects tables, PyMuPDF handles plain text (faster)                        |
-| Cancel file cleanup      | Processor self-cleans on ExtractionCancelled | Avoids Windows file lock — delete endpoint never touches locked files                 |
-| Embedding model          | BAAI/bge-base-en-v1.5 (768d)                 | mxbai-embed-large-v1 was too slow on CPU-only i5 — bge-base is fast with good quality |
-| Markdown rendering       | react-markdown + react-syntax-highlighter    | LLM outputs markdown — frontend must render it, not display raw text                  |
-| RAG toggle               | Per-message boolean flag (use_rag)           | Allows pure LLM chat without document context, no DB change needed                    |
-| Code block styling       | Custom CodeBlock component                   | Adds language label + copy button on top of SyntaxHighlighter                         |
+| Decision                 | Choice                                       | Reason                                                                                           |
+| ------------------------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Document ownership       | Many-to-Many                                 | Upload once, use in many workspaces                                                              |
+| Embedding model          | Local sentence-transformers                  | LLM API doesn't support embeddings                                                               |
+| UUID vs Integer IDs      | UUID                                         | Better for distributed systems                                                                   |
+| File naming              | {uuid}\_{filename}                           | Prevents name collisions                                                                         |
+| Chat persistence         | PostgreSQL                                   | Full history replay to LLM                                                                       |
+| Processing trigger       | FastAPI BackgroundTasks                      | Returns upload response instantly                                                                |
+| Embedding storage        | .pkl cache file on disk                      | Attach to workspace is instant, no recompute                                                     |
+| Progress tracking        | PostgreSQL progress column                   | Simple polling, no WebSockets needed                                                             |
+| Icon library             | lucide-react                                 | Consistent SVG icons, no emoji rendering bugs                                                    |
+| ChromaDB batching        | 5000 vectors per upsert                      | ChromaDB hard limit is 5461                                                                      |
+| Session title            | LLM few-shot auto-generation                 | Better UX than manual naming every session                                                       |
+| Chat state on tab switch | CSS hidden (not unmount)                     | Preserves session without re-fetching                                                            |
+| Session memory           | Record<wsId, sessionId> in App               | Survives workspace switching                                                                     |
+| Model selection          | Backend proxy GET /models                    | Bearer token stays server-side, never exposed in browser                                         |
+| LLM config storage       | PostgreSQL settings table                    | Team members update token via UI, no server file access needed                                   |
+| .env scope               | Infrastructure only (DB, ports)              | LLM settings in DB so team can self-serve without touching server                                |
+| Settings seeding         | seed_settings.py on startup                  | Safe to run every boot — never overwrites existing values                                        |
+| Resizable panels         | react-resizable-panels v2.1.7                | Production-ready, localStorage persistence, imperative collapse API                              |
+| Panel collapse           | ImperativePanelHandle + collapsible=true     | Programmatic collapse to zero, synced with toggle button                                         |
+| PDF table extraction     | pdfplumber + PyMuPDF hybrid                  | pdfplumber detects tables, PyMuPDF handles plain text (faster)                                   |
+| Cancel file cleanup      | Processor self-cleans on ExtractionCancelled | Avoids Windows file lock — delete endpoint never touches locked files                            |
+| Embedding model          | BAAI/bge-base-en-v1.5 (768d)                 | mxbai-embed-large-v1 was too slow on CPU-only i5 — bge-base is fast with good quality            |
+| Markdown rendering       | react-markdown + react-syntax-highlighter    | LLM outputs markdown — frontend must render it, not display raw text                             |
+| RAG toggle               | Per-message boolean flag (use_rag)           | Allows pure LLM chat without document context, no DB change needed                               |
+| Code block styling       | Custom CodeBlock component                   | Adds language label + copy button on top of SyntaxHighlighter                                    |
+| Folder structure         | Path string on Document + Folder table       | Write-once paths eliminate cascade rename complexity. Tree built client-side from flat list.     |
+| Code file support        | Treated as plain text (same as .txt)         | Code files are UTF-8 text — no special parser needed. Filename prepended as context for LLM.     |
+| Bulk attach              | POST /workspaces/{id}/documents/bulk         | Single request for attaching entire folders. Skips already-attached and non-ready docs silently. |

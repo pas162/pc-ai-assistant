@@ -1,8 +1,16 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { getDocuments, uploadDocument, deleteDocument } from "../api";
-import type { Document } from "../api";
+import {
+  getDocuments,
+  uploadDocument,
+  deleteDocument,
+  getFolders,
+  createFolder,
+  deleteFolder, // ← new API calls
+} from "../api";
+import type { Document, Folder } from "../api";
 import type { ToastType } from "../hooks/useToast";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FolderPlus } from "lucide-react";
+import FolderTree from "./FolderTree";
 
 interface KnowledgeBaseProps {
   showToast: (message: string, type: ToastType) => void;
@@ -10,44 +18,40 @@ interface KnowledgeBaseProps {
 
 export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rootFileInputRef = useRef<HTMLInputElement>(null);
+  const rootFolderInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Fetch Documents ───────────────────────────────────────────────────────
-  const fetchDocs = useCallback(async () => {
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getDocuments();
-      setDocuments(data);
-      return data;
+      const [docs, fols] = await Promise.all([getDocuments(), getFolders()]);
+      setDocuments(docs);
+      setFolders(fols);
     } catch {
-      setError("Failed to load documents");
-      return [];
+      showToast("Failed to load knowledge base", "error");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
-    fetchDocs();
-  }, [fetchDocs]);
-
-  // ── Polling Logic ─────────────────────────────────────────────────────────
+    fetchAll();
+  }, [fetchAll]);
+  // ── Polling ───────────────────────────────────────────────────────────────
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
-
     pollingRef.current = setInterval(async () => {
-      const data = await getDocuments();
-      setDocuments(data);
-
-      const stillProcessing = data.some(
+      const docs = await getDocuments();
+      setDocuments(docs);
+      const stillProcessing = docs.some(
         (d) => d.status === "pending" || d.status === "processing",
       );
-
       if (!stillProcessing) {
         clearInterval(pollingRef.current!);
         pollingRef.current = null;
@@ -61,70 +65,198 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
     };
   }, []);
 
-  // ── Upload Logic ──────────────────────────────────────────────────────────
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
+  // ── Upload Files (single or multiple) ────────────────────────────────────
+  const handleUploadFiles = useCallback(
+    async (folderPath: string | null, files: FileList) => {
+      setUploading(true);
+      setUploadProgress(0);
+      let successCount = 0;
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          await uploadDocument(
+            files[i],
+            (percent) => {
+              // Overall progress across all files
+              const overall = Math.round(
+                ((i + percent / 100) / files.length) * 100,
+              );
+              setUploadProgress(overall);
+            },
+            folderPath ?? undefined,
+          );
+          successCount++;
+        }
+        await fetchAll();
+        showToast(
+          `${successCount} file(s) uploaded! Processing in background...`,
+          "info",
+        );
+        startPolling();
+      } catch {
+        showToast("Failed to upload one or more files", "error");
+      } finally {
+        setUploading(false);
+        setUploadProgress(0);
+      }
+    },
+    [fetchAll, showToast, startPolling],
+  );
+
+  // ── Upload Folder (webkitdirectory) ───────────────────────────────────────
+  const handleUploadFolder = useCallback(
+    async (targetFolderPath: string | null, files: FileList) => {
       setUploading(true);
       setUploadProgress(0);
 
-      // I accidentally removed this callback in the last step! It's back now.
-      await uploadDocument(file, (percent) => {
-        setUploadProgress(percent);
-      });
+      try {
+        // Group files by their folder structure
+        // file.webkitRelativePath = "my-project/src/Main.java"
+        const foldersToCreate = new Set<string>();
+        const fileEntries: { file: File; folderPath: string }[] = [];
 
-      await fetchDocs();
-      showToast("File uploaded! Processing in background...", "info");
-      startPolling();
-    } catch {
-      showToast("Failed to upload document", "error");
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
+        for (const file of Array.from(files)) {
+          const relativePath = (file as File & { webkitRelativePath: string })
+            .webkitRelativePath;
+          console.log("webkitRelativePath:", relativePath);
+          // Strip filename, keep folder part
+          const parts = relativePath.split("/");
+          parts.pop(); // remove filename
 
-  // ── Delete / Cancel Logic ─────────────────────────────────────────────────
-  const handleDelete = async (doc: Document) => {
-    const isProcessing =
-      doc.status === "pending" || doc.status === "processing";
+          // Build full path: targetFolder + relative folder path
+          const relFolderPath = parts.join("/");
+          const fullFolderPath = targetFolderPath
+            ? `${targetFolderPath}/${relFolderPath}`
+            : relFolderPath;
 
-    const message = isProcessing
-      ? `Cancel processing and delete "${doc.filename}"?`
-      : `Delete "${doc.filename}"?\n\nThis will remove it from ALL workspaces. This cannot be undone.`;
+          // Collect all intermediate paths to create
+          // e.g. "java-project/src/controllers" needs:
+          //   "java-project", "java-project/src", "java-project/src/controllers"
+          const pathParts = fullFolderPath.split("/");
+          for (let i = 1; i <= pathParts.length; i++) {
+            foldersToCreate.add(pathParts.slice(0, i).join("/"));
+          }
 
-    if (!window.confirm(message)) return;
+          fileEntries.push({ file, folderPath: fullFolderPath });
+        }
 
-    try {
-      await deleteDocument(doc.id);
-      await fetchDocs();
-      showToast(
-        isProcessing
-          ? `Canceled "${doc.filename}"`
-          : `"${doc.filename}" deleted`,
-        "info",
-      );
-    } catch {
-      showToast("Failed to delete document", "error");
-    }
-  };
+        // Create all folders first (sorted so parents come before children)
+        const sortedFolders = Array.from(foldersToCreate).sort();
+        for (const folderPath of sortedFolders) {
+          const parts = folderPath.split("/");
+          const name = parts[parts.length - 1];
+          const parent = parts.length > 1 ? parts.slice(0, -1).join("/") : null;
+          try {
+            await createFolder(name, parent);
+          } catch {
+            // Folder may already exist — that's fine, continue
+          }
+        }
 
-  // ── Status Badge Colors ───────────────────────────────────────────────────
-  function getStatusBadgeClass(status: string): string {
-    switch (status) {
-      case "completed":
-        return "bg-green-900 text-green-300";
-      case "processing":
-        return "bg-blue-900 text-blue-300";
-      case "failed":
-        return "bg-red-900 text-red-300";
-      default:
-        return "bg-yellow-900 text-yellow-300";
-    }
-  }
+        // Upload each file into its folder
+        console.log("Folders created. Starting file uploads...");
 
+        for (let i = 0; i < fileEntries.length; i++) {
+          const { file, folderPath } = fileEntries[i];
+          console.log(`Uploading: ${file.name} → folder_path: "${folderPath}"`);
+
+          await uploadDocument(
+            file,
+            (percent) => {
+              const overall = Math.round(
+                ((i + percent / 100) / fileEntries.length) * 100,
+              );
+              setUploadProgress(overall);
+            },
+            folderPath,
+          );
+        }
+
+        await fetchAll();
+        showToast(
+          `Folder uploaded! ${fileEntries.length} files processing...`,
+          "info",
+        );
+        startPolling();
+      } catch {
+        showToast("Failed to upload folder", "error");
+      } finally {
+        setUploading(false);
+        setUploadProgress(0);
+      }
+    },
+    [fetchAll, showToast, startPolling],
+  );
+
+  // ── Delete Document ───────────────────────────────────────────────────────
+  const handleDeleteDoc = useCallback(
+    async (doc: Document) => {
+      const isProcessing =
+        doc.status === "pending" || doc.status === "processing";
+      const message = isProcessing
+        ? `Cancel processing and delete "${doc.filename}"?`
+        : `Delete "${doc.filename}"?\n\nThis cannot be undone.`;
+      if (!window.confirm(message)) return;
+      try {
+        await deleteDocument(doc.id);
+        await fetchAll();
+        showToast(
+          isProcessing
+            ? `Canceled "${doc.filename}"`
+            : `"${doc.filename}" deleted`,
+          "info",
+        );
+      } catch {
+        showToast("Failed to delete document", "error");
+      }
+    },
+    [fetchAll, showToast],
+  );
+
+  // ── Delete Folder ─────────────────────────────────────────────────────────
+  const handleDeleteFolder = useCallback(
+    async (id: string, path: string) => {
+      if (
+        !window.confirm(
+          `Delete folder "${path}" and ALL its contents?\n\nThis cannot be undone.`,
+        )
+      )
+        return;
+      try {
+        await deleteFolder(id);
+        await fetchAll();
+        showToast(`Folder "${path}" deleted`, "info");
+      } catch {
+        showToast("Failed to delete folder", "error");
+      }
+    },
+    [fetchAll, showToast],
+  );
+
+  // ── Create Folder ─────────────────────────────────────────────────────────
+  const handleCreateFolder = useCallback(
+    async (parentPath: string | null) => {
+      const name = window
+        .prompt(
+          parentPath
+            ? `New folder inside "${parentPath}":`
+            : "New root folder name:",
+        )
+        ?.trim();
+      if (!name) return;
+      try {
+        await createFolder(name, parentPath);
+        await fetchAll();
+        showToast(`Folder "${name}" created`, "success");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to create folder";
+        showToast(msg, "error");
+      }
+    },
+    [fetchAll, showToast],
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-8 w-full max-w-4xl mx-auto">
       {/* Header */}
@@ -132,35 +264,70 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         <div>
           <h2 className="text-2xl font-bold text-gray-100">Knowledge Base</h2>
           <p className="text-gray-400 text-sm mt-1">
-            Supports PDF, DOCX, TXT, MD, XLSX.
+            Supports PDF, DOCX, TXT, MD, XLSX, and code files.
           </p>
         </div>
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept=".pdf,.txt,.docx,.md,.xlsx"
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 
-                     rounded transition-colors disabled:opacity-50 text-sm font-medium"
-        >
-          <span className="flex items-center gap-2">
+        {/* Root-level action buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleCreateFolder(null)}
+            className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600
+                       text-white px-3 py-2 rounded transition-colors text-sm"
+          >
+            <FolderPlus size={14} />
+            New Folder
+          </button>
+
+          <button
+            onClick={() => rootFileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700
+                       text-white px-3 py-2 rounded transition-colors
+                       disabled:opacity-50 text-sm"
+          >
             <Upload size={14} />
-            {uploading ? `Uploading ${uploadProgress}%` : "Upload File"}
-          </span>
-        </button>
+            {uploading ? `Uploading ${uploadProgress}%` : "Upload Files"}
+          </button>
+
+          <button
+            onClick={() => rootFolderInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600
+                       text-white px-3 py-2 rounded transition-colors
+                       disabled:opacity-50 text-sm"
+          >
+            <Upload size={14} />
+            Upload Folder
+          </button>
+        </div>
       </div>
+
+      {/* Hidden root-level inputs */}
+      <input
+        ref={rootFileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) =>
+          e.target.files && handleUploadFiles(null, e.target.files)
+        }
+      />
+      <input
+        ref={rootFolderInputRef}
+        type="file"
+        className="hidden"
+        {...({ webkitdirectory: "true" } as object)}
+        onChange={(e) =>
+          e.target.files && handleUploadFolder(null, e.target.files)
+        }
+      />
 
       {/* Upload Progress Bar */}
       {uploading && (
         <div className="mb-4">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>Uploading file to server...</span>
+            <span>Uploading...</span>
             <span>{uploadProgress}%</span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-2">
@@ -172,99 +339,25 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="bg-red-900 text-red-300 p-3 rounded mb-4 border border-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* Document Table */}
-      <div className="bg-gray-900 shadow rounded-lg overflow-hidden border border-gray-700">
+      {/* Tree */}
+      <div
+        className="bg-gray-900 shadow rounded-lg overflow-hidden
+                      border border-gray-700"
+      >
         {loading ? (
           <div className="p-8 text-center text-gray-500">
-            Loading documents...
-          </div>
-        ) : documents.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            No documents uploaded yet. Click "Upload File" to add one.
+            Loading knowledge base...
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-800">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Filename
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-40">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider w-24">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {documents.map((doc) => (
-                <tr
-                  key={doc.id}
-                  className="hover:bg-gray-800 transition-colors"
-                >
-                  <td
-                    className="px-6 py-4 text-sm font-medium text-gray-200 max-w-xs truncate"
-                    title={doc.filename}
-                  >
-                    <span className="flex items-center gap-2">
-                      <FileText size={14} className="text-gray-400 shrink-0" />
-                      {doc.filename}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-400 uppercase">
-                    {doc.file_type || "unknown"}
-                  </td>
-
-                  {/* ── STATUS COLUMN (Processing Progress Bar) ── */}
-                  <td className="px-6 py-4 text-sm">
-                    {doc.status === "processing" ? (
-                      <div className="flex flex-col gap-1 min-w-32">
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span className="text-blue-400">Processing...</span>
-                          <span>{doc.progress ?? 0}%</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5">
-                          <div
-                            className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
-                            style={{ width: `${doc.progress ?? 0}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeClass(doc.status)}`}
-                      >
-                        {doc.status}
-                      </span>
-                    )}
-                  </td>
-
-                  {/* ── ACTION COLUMN (Cancel / Delete Button) ── */}
-                  <td className="px-6 py-4 text-sm">
-                    <button
-                      onClick={() => handleDelete(doc)}
-                      className="text-red-400 hover:text-red-300 text-xs font-medium transition-colors"
-                    >
-                      {doc.status === "pending" || doc.status === "processing"
-                        ? "Cancel"
-                        : "Delete"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <FolderTree
+            folders={folders}
+            documents={documents}
+            onDeleteDoc={handleDeleteDoc}
+            onDeleteFolder={handleDeleteFolder}
+            onCreateFolder={handleCreateFolder}
+            onUploadFiles={handleUploadFiles}
+            onUploadFolder={handleUploadFolder}
+          />
         )}
       </div>
     </div>
