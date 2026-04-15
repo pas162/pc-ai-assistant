@@ -124,6 +124,11 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Folder tree in workspace documents tab (shows attached docs organized by folder)
 - [x] folder_path column added to documents table (Alembic migration)
 - [x] folders table added to PostgreSQL (Alembic migration)
+- [x] Folder tree file rows show file type (color-coded) + file size
+- [x] Fixed-width columns in file tree (type, size, status, action always aligned)
+- [x] Searchable model selector combobox (replaces native select)
+- [x] Model display strips "databricks-" prefix for readability
+- [x] Selected model highlighted with checkmark in dropdown
 
 ## In Progress
 
@@ -170,3 +175,5 @@ Workspaces, and chat with an AI about the attached documents.
 | Folder structure         | Path string on Document + Folder table       | Write-once paths eliminate cascade rename complexity. Tree built client-side from flat list.     |
 | Code file support        | Treated as plain text (same as .txt)         | Code files are UTF-8 text — no special parser needed. Filename prepended as context for LLM.     |
 | Bulk attach              | POST /workspaces/{id}/documents/bulk         | Single request for attaching entire folders. Skips already-attached and non-ready docs silently. |
+| Model selector UI        | Custom combobox with search                  | Native select can't be styled or searched — 17+ models needs filtering                           |
+| File type colors         | Per-extension color in DocumentRow           | Visual scanning of mixed folders (java=orange, py=yellow, mdf=purple)                            |

@@ -36,7 +36,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
-
+const displayModel = (model: string) => model.replace(/^databricks-/, "");
 interface ChatPanelProps {
   workspaceId: string;
   showToast: (message: string, type: ToastType) => void;
@@ -580,26 +580,12 @@ export default function ChatPanel({
                   >
                     {/* Left — model selector + RAG toggle */}
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <select
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        disabled={modelsLoading}
-                        className="bg-transparent text-gray-500 text-xs
-                                   border-none focus:outline-none
-                                   disabled:opacity-50 disabled:cursor-wait
-                                   max-w-40 truncate cursor-pointer
-                                   hover:text-gray-300 transition-colors"
-                      >
-                        {modelsLoading ? (
-                          <option>Loading...</option>
-                        ) : (
-                          availableModels.map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))
-                        )}
-                      </select>
+                      <ModelSelector
+                        models={availableModels}
+                        selected={selectedModel}
+                        loading={modelsLoading}
+                        onChange={setSelectedModel}
+                      />
 
                       <span className="text-gray-700 text-xs">|</span>
 
@@ -705,6 +691,144 @@ function CodeBlock({
       >
         {children}
       </SyntaxHighlighter>
+    </div>
+  );
+}
+
+// ── Model Selector ────────────────────────────────────────────────────────────
+function ModelSelector({
+  models,
+  selected,
+  loading,
+  onChange,
+}: {
+  models: string[];
+  selected: string;
+  loading: boolean;
+  onChange: (model: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = models.filter((m) =>
+    displayModel(m).toLowerCase().includes(search.toLowerCase()),
+  );
+
+  if (loading) {
+    return (
+      <span className="text-xs text-gray-600 animate-pulse">
+        Loading models...
+      </span>
+    );
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger button — shows short display name */}
+      <button
+        onClick={() => {
+          setOpen((o) => !o);
+          setSearch("");
+        }}
+        className="flex items-center gap-1 text-xs text-gray-400
+                   hover:text-gray-200 transition-colors max-w-36 group"
+        title={selected}
+      >
+        <span className="truncate">{displayModel(selected)}</span>
+        {/* Chevron rotates when open */}
+        <svg
+          className={`w-3 h-3 shrink-0 transition-transform text-gray-600
+                      group-hover:text-gray-400
+                      ${open ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          className="absolute bottom-full left-0 mb-1 w-64 z-50
+                     bg-gray-900 border border-gray-700 rounded-lg
+                     shadow-xl overflow-hidden"
+        >
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-700">
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search models..."
+              className="w-full bg-gray-800 text-xs text-gray-200
+                         placeholder-gray-600 px-2 py-1.5 rounded
+                         border border-gray-700 focus:outline-none
+                         focus:border-blue-500"
+            />
+          </div>
+
+          {/* Model list */}
+          <div className="max-h-56 overflow-y-auto custom-scrollbar">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-4">
+                No models found
+              </p>
+            ) : (
+              filtered.map((model) => (
+                <button
+                  key={model}
+                  onClick={() => {
+                    onChange(model);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs
+                             transition-colors flex items-center
+                             justify-between gap-2
+                             ${
+                               model === selected
+                                 ? "bg-blue-600/30 text-blue-300"
+                                 : "text-gray-300 hover:bg-gray-800"
+                             }`}
+                >
+                  {/* Short display name */}
+                  <span className="truncate">{displayModel(model)}</span>
+                  {/* Full name as subtle hint */}
+                  <span
+                    className="text-gray-600 text-xs shrink-0 hidden
+                                   group-hover:block"
+                  ></span>
+                  {/* Checkmark for selected */}
+                  {model === selected && (
+                    <Check size={11} className="text-blue-400 shrink-0" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

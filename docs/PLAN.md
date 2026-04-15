@@ -158,3 +158,7 @@ An internal AI platform with:
 - [x] POST /workspaces/{id}/documents/bulk endpoint
 - [x] Workspace documents tab replaced with folder tree view
 - [x] Route order fix — /bulk declared before /{document_id} to prevent conflict
+- [x] File type color coding in document rows (per extension)
+- [x] File size display in document rows (B / KB / MB formatting)
+- [x] Fixed-width columns in tree rows (type, size, status, delete aligned)
+- [x] Searchable model combobox (strips databricks- prefix, search filter, checkmark)
