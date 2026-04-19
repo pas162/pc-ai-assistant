@@ -11,20 +11,22 @@
 
 ## Key Python Packages
 
-| Package               | Version | Purpose                                  |
-| --------------------- | ------- | ---------------------------------------- |
-| fastapi               | 0.115.0 | Web framework                            |
-| uvicorn               | 0.30.6  | ASGI server                              |
-| sqlalchemy            | 2.0.35  | ORM (like Hibernate in Java)             |
-| psycopg2-binary       | 2.9.11  | PostgreSQL driver                        |
-| alembic               | 1.13.3  | Database migrations                      |
-| chromadb              | 1.5.5   | Vector database client                   |
-| httpx                 | 0.27.0  | HTTP client for LLM API calls            |
-| python-multipart      | 0.0.24  | File upload support                      |
-| pydantic-settings     | 2.4.0   | .env config management                   |
-| PyMuPDF               | 1.24.9  | Extract text from PDF files              |
-| python-docx           | 1.1.2   | Extract text from DOCX files             |
-| sentence-transformers | 3.0.1   | Local embedding model (all-MiniLM-L6-v2) |
+| Package               | Version  | Purpose                                       |
+| --------------------- | -------- | --------------------------------------------- |
+| fastapi               | 0.115.0  | Web framework                                 |
+| uvicorn               | 0.30.6   | ASGI server                                   |
+| sqlalchemy            | 2.0.35   | ORM (like Hibernate in Java)                  |
+| psycopg2-binary       | 2.9.11   | PostgreSQL driver                             |
+| alembic               | 1.13.3   | Database migrations                           |
+| chromadb              | 1.5.5    | Vector database client                        |
+| httpx                 | 0.27.0   | HTTP client for LLM API calls                 |
+| python-multipart      | 0.0.24   | File upload support                           |
+| pydantic-settings     | 2.4.0    | .env config management                        |
+| PyMuPDF               | 1.27.2.2 | Extract text from PDF files                   |
+| python-docx           | 1.2.0    | Extract text from DOCX files                  |
+| pdfplumber            | 0.11.4   | Table extraction from PDF files               |
+| openpyxl              | 3.1.5    | Extract text from Excel files (.xlsx)         |
+| sentence-transformers | 5.3.0    | Local embedding model (BAAI/bge-base-en-v1.5) |
 
 ## Key Frontend Packages
 
