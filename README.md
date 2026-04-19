@@ -103,7 +103,7 @@ Key values to set:
 
 ## 📁 Project Structure
 
-`````
+````
 pc-ai-assistant/
 ├── backend/          # Python FastAPI backend
 ├── frontend/         # React + TypeScript frontend
@@ -113,22 +113,3 @@ pc-ai-assistant/
 └── README.md
 ```
 ````
-
----
-
-## 📋 Summary of New Files
-
-```
-docker-compose.yml        ← one command to start everything
-backend/Dockerfile        ← builds the FastAPI backend
-frontend/Dockerfile       ← builds the React frontend
-README.md                 ← updated with Quick Start + manual steps
-```
-
-The key thing to note: **`docker compose up --build`** will:
-1. Start PostgreSQL
-2. Start ChromaDB
-3. Run Alembic migrations automatically
-4. Start the backend
-5. Start the frontend
-`````
