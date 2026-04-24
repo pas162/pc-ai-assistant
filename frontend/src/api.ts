@@ -257,11 +257,19 @@ export const streamMessage = (
   }) => void,
   onError: (error: string) => void,
   signal?: AbortSignal,
+  attachedFiles?: { filename: string; content: string }[], // ADD
+  mentionedDocIds?: string[], // ADD
 ): Promise<void> => {
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, model, use_rag: useRag }),
+    body: JSON.stringify({
+      question,
+      model,
+      use_rag: useRag,
+      attached_files: attachedFiles ?? [], // ADD
+      mentioned_doc_ids: mentionedDocIds ?? [], // ADD
+    }),
     signal,
   })
     .then((response) => {

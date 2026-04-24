@@ -162,3 +162,16 @@ An internal AI platform with:
 - [x] File size display in document rows (B / KB / MB formatting)
 - [x] Fixed-width columns in tree rows (type, size, status, delete aligned)
 - [x] Searchable model combobox (strips databricks- prefix, search filter, checkmark)
+
+### Chat Input Enhancements (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] File attach button (paperclip) — attach .py, .java, .xml, .txt, .json, .ts, .js, .md, .yaml, .sql, .sh files directly in chat input
+- [x] File content read client-side as plain text (max 500KB per file)
+- [x] Attached files sent to backend as attached_files: [{filename, content}]
+- [x] @ mention dropdown — type @ to search and mention workspace documents
+- [x] @ mention supports both files and folders (selecting folder adds all its docs)
+- [x] Mention dropdown: single flat list, keyboard nav (↑↓ Enter Esc), live search filter
+- [x] Mentioned docs sent to backend as mentioned_doc_ids: [uuid, ...]
+- [x] Pills shown inside chat input card (file attach = gray, mentions = blue)
+- [x] Folder mention pill removes all its child docs when dismissed
+- [x] ChatPanel refactored into modular files under frontend/src/components/chat/

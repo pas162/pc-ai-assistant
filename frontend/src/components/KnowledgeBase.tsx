@@ -3,7 +3,6 @@ import {
   getDocuments,
   uploadDocument,
   deleteDocument,
-  getFolders,
   createFolder,
   deleteFolder, // ← new API calls
 } from "../api";
@@ -30,12 +29,26 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [docs, fols] = await Promise.all([getDocuments(), getFolders()]);
+      console.log("fetchAll: starting...");
+
+      // ADD: bypass axios, use raw fetch to isolate the issue
+      const [docsRes, folsRes] = await Promise.all([
+        fetch("http://localhost:8000/documents"),
+        fetch("http://localhost:8000/folders"),
+      ]);
+      console.log("fetch status:", docsRes.status, folsRes.status);
+
+      const docs = (await docsRes.json()) as Document[];
+      const fols = (await folsRes.json()) as Folder[];
+      console.log("docs OK", docs.length, "folders OK", fols.length);
+
       setDocuments(docs);
       setFolders(fols);
-    } catch {
+    } catch (e) {
+      console.error("fetchAll error:", e);
       showToast("Failed to load knowledge base", "error");
     } finally {
+      console.log("fetchAll: done");
       setLoading(false);
     }
   }, [showToast]);
@@ -43,6 +56,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
   // ── Polling ───────────────────────────────────────────────────────────────
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
@@ -108,7 +122,6 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
     async (targetFolderPath: string | null, files: FileList) => {
       setUploading(true);
       setUploadProgress(0);
-
       try {
         // Group files by their folder structure
         // file.webkitRelativePath = "my-project/src/Main.java"

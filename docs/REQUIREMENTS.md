@@ -129,6 +129,11 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Searchable model selector combobox (replaces native select)
 - [x] Model display strips "databricks-" prefix for readability
 - [x] Selected model highlighted with checkmark in dropdown
+- [x] File attach in chat input (paperclip button, plain text/code files, 500KB limit)
+- [x] @ mention in chat input (dropdown, search, keyboard nav, file + folder selection)
+- [x] Mention pills inside chat input card (blue for mentions, gray for attachments)
+- [x] attached_files and mentioned_doc_ids sent to backend on every message
+- [x] ChatPanel split into modules: ChatPanel.tsx, MessageBubble.tsx, CodeBlock.tsx, ModelSelector.tsx, MentionDropdown.tsx, types.ts
 
 ## In Progress
 
@@ -177,3 +182,18 @@ Workspaces, and chat with an AI about the attached documents.
 | Bulk attach              | POST /workspaces/{id}/documents/bulk         | Single request for attaching entire folders. Skips already-attached and non-ready docs silently. |
 | Model selector UI        | Custom combobox with search                  | Native select can't be styled or searched — 17+ models needs filtering                           |
 | File type colors         | Per-extension color in DocumentRow           | Visual scanning of mixed folders (java=orange, py=yellow, mdf=purple)                            |
+
+## Chat Input Module Structure
+
+The chat input has been refactored into `frontend/src/components/chat/`:
+
+| File                  | Purpose                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| `ChatPanel.tsx`       | Main component — sessions sidebar + input logic              |
+| `MessageBubble.tsx`   | Message rendering + markdown                                 |
+| `CodeBlock.tsx`       | Syntax highlighted code blocks                               |
+| `ModelSelector.tsx`   | Model combobox with search                                   |
+| `MentionDropdown.tsx` | @ mention dropdown (files + folders flat list)               |
+| `types.ts`            | Shared types: AttachedFile, FolderNode, MentionItem, helpers |
+
+`frontend/src/components/ChatPanel.tsx` re-exports from the new location for backward compatibility.

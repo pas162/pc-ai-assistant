@@ -7,7 +7,7 @@ import {
 } from "../api";
 import type { Workspace, Document, Folder } from "../api";
 import type { ToastType } from "../hooks/useToast";
-import ChatPanel from "./ChatPanel";
+import ChatPanel from "./chat/ChatPanel";
 import {
   ChevronRight,
   ChevronDown,
@@ -142,7 +142,6 @@ export default function WorkspaceDetail({
 
   // ── Attached docs tree ────────────────────────────────────────────────────
   const { attachedRootFolders, attachedRootDocuments } = useMemo(() => {
-    // ← ADD FROM HERE
     const nodeMap = new Map<string, FolderTreeNode>();
     for (const f of folders) {
       nodeMap.set(f.path, {
@@ -582,6 +581,8 @@ export default function WorkspaceDetail({
             showToast={showToast}
             activeSessionId={activeSessionId}
             onSessionChange={onSessionChange}
+            workspaceDocs={attachedDocs}
+            workspaceFolders={folders}
           />
         </div>
 
