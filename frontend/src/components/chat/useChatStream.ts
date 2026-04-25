@@ -72,14 +72,14 @@ export function useChatStream({
       abortControllerRef.current = controller;
 
       // ── Optimistic user message ───────────────────────────────────────────
-      const tempMsg: ChatMessageWithMeta = {
+      const tempMsg = {
         id: "temp-" + Date.now(),
         role: "user",
         content: questionText,
         created_at: new Date().toISOString(),
         mentionedDocs: docsToShow,
-      };
-
+        attachedFiles: filesToSend,
+      } as unknown as ChatMessageWithMeta; // Bypass DOM Document collision
       setActiveSession((prev) =>
         prev ? { ...prev, messages: [...prev.messages, tempMsg] } : prev,
       );
@@ -112,7 +112,9 @@ export function useChatStream({
                     role: "user" as const,
                     content: questionText,
                     created_at: new Date().toISOString(),
-                  } as ChatMessageWithMeta,
+                    mentionedDocs: docsToShow, // Keep pills after stream finishes
+                    attachedFiles: filesToSend, // Keep pills after stream finishes
+                  } as unknown as ChatMessageWithMeta, // Bypass DOM Document collision
                   {
                     id: data.assistant_message_id,
                     role: "assistant" as const,

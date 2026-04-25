@@ -190,7 +190,8 @@ An internal AI platform with:
 - [x] Backend retrieves chunks filtered by mentioned doc (ChromaDB where filter)
 - [x] Mentioned doc context injected into LLM system prompt separately
 - [x] Attached file content injected into LLM system prompt
-- [x] Mentioned doc pills shown on sent user message bubble
-- [x] ChatMessageWithMeta type extends ChatMessage with mentionedDocs field
+- [x] Mentioned doc pills displayed on sent user message bubble
+- [x] Attached file pills displayed on sent user message bubble (persists after stream)
+- [x] ChatMessageWithMeta type extends ChatMessage with mentionedDocs and attachedFiles fields
 - [x] SendMessageRequest schema updated with attached_files + mentioned_doc_ids
 - [x] retriever.py supports filter_doc_id via ChromaDB where filter

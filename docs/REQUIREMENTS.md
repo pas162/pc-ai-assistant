@@ -139,6 +139,8 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] mentioned_doc_ids sent to backend and injected into LLM context
 - [x] attached_files sent to backend and injected into LLM context
 - [x] Mentioned doc pills displayed on sent user message bubble
+- [x] Attached file pills displayed on sent user message bubble
+- [x] Fixed bug where pills disappeared after AI stream completion
 - [x] Backend filters ChromaDB chunks by document id (filter_doc_id)
 - [x] SendMessageRequest schema includes attached_files + mentioned_doc_ids
 - [x] ChatPanel split into modules: ChatPanel.tsx, MessageBubble.tsx, CodeBlock.tsx, ModelSelector.tsx, MentionDropdown.tsx, types.ts

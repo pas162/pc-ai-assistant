@@ -37,8 +37,13 @@ const MessageList = memo(function MessageList({
             <MessageBubble
               key={msg.id}
               message={msg}
-              sources={isLastAssistant ? lastSources : undefined}
+              sources={
+                isLastAssistant
+                  ? lastSources?.map((s) => s.filename)
+                  : undefined
+              }
               mentionedDocs={msg.mentionedDocs}
+              attachedFiles={msg.attachedFiles}
             />
           );
         })

@@ -13,8 +13,11 @@ export interface FolderNode {
   children: FolderNode[];
 }
 
+export type MentionedDoc = Document;
+
 export interface ChatMessageWithMeta extends ChatMessage {
-  mentionedDocs?: { id: string; filename: string }[];
+  mentionedDocs?: MentionedDoc[];
+  attachedFiles?: AttachedFile[];
 }
 
 export const ALLOWED_ATTACH_EXTENSIONS = [
@@ -38,7 +41,6 @@ export const DEFAULT_MODEL = "databricks-claude-sonnet-4-6";
 
 export const displayModel = (model: string) =>
   model.replace(/^databricks-/, "");
-
 export function buildMentionTree(
   folders: import("../../api").Folder[],
   documents: Document[],

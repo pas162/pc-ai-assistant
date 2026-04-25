@@ -1,19 +1,26 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bot, FileText, User } from "lucide-react";
-import type { ChatMessage, ChatSource } from "../../api";
+import type { ChatMessage } from "../../api";
 import CodeBlock from "./CodeBlock";
 
+type MentionedDoc = { id: string; filename: string };
+type AttachedFile = { filename: string };
+
+type ChatMessageWithMeta = ChatMessage;
+
 interface MessageBubbleProps {
-  message: ChatMessage;
-  sources?: ChatSource[];
-  mentionedDocs?: { id: string; filename: string }[];
+  message: ChatMessageWithMeta;
+  sources?: string[];
+  mentionedDocs?: MentionedDoc[];
+  attachedFiles?: AttachedFile[];
 }
 
 export default function MessageBubble({
   message,
   sources,
   mentionedDocs,
+  attachedFiles,
 }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const time = new Date(message.created_at).toLocaleTimeString([], {
@@ -68,6 +75,19 @@ export default function MessageBubble({
                     ))}
                   </div>
                 )}
+
+              {attachedFiles && attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {attachedFiles.map((f) => (
+                    <span
+                      key={f.filename}
+                      className="text-xs bg-zinc-600 text-zinc-300 px-2 py-0.5 rounded-full"
+                    >
+                      📎 {f.filename}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div
@@ -106,15 +126,13 @@ export default function MessageBubble({
 
         {!isUser && sources && sources.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {sources.map((src) => (
+            {sources.map((filename) => (
               <span
-                key={src.id}
+                key={filename}
                 className="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded"
-                title={src.filename}
+                title={filename}
               >
-                {src.filename.length > 25
-                  ? src.filename.slice(0, 25) + "…"
-                  : src.filename}
+                {filename.length > 25 ? filename.slice(0, 25) + "…" : filename}
               </span>
             ))}
           </div>
