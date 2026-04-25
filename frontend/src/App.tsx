@@ -16,7 +16,15 @@ import type { Workspace } from "./api";
 
 function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
-    null,
+    () => {
+      // Restore last selected workspace from localStorage on reload
+      try {
+        const saved = localStorage.getItem("selectedWorkspace");
+        return saved ? (JSON.parse(saved) as Workspace) : null;
+      } catch {
+        return null;
+      }
+    },
   );
   const { toasts, showToast, removeToast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -37,13 +45,15 @@ function App() {
 
   const handleSelectWorkspace = (workspace: Workspace) => {
     setSelectedWorkspace(workspace);
+    localStorage.setItem("selectedWorkspace", JSON.stringify(workspace)); // Save on select
     setShowSettings(false);
   };
 
   const handleWorkspaceDeleted = (deletedId: string) => {
     // If the deleted workspace is currently open — clear it
     if (selectedWorkspace?.id === deletedId) {
-            setSelectedWorkspace(null);
+      setSelectedWorkspace(null);
+      localStorage.removeItem("selectedWorkspace"); // Clear on delete
     }
   };
 
@@ -159,6 +169,7 @@ function App() {
               <button
                 onClick={() => {
                   setSelectedWorkspace(null);
+                  localStorage.removeItem("selectedWorkspace"); // Clear on KB click
                   setShowSettings(false);
                 }}
                 className={`w-full text-left px-3 py-2 rounded text-sm
