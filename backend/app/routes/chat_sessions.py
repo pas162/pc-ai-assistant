@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
 from app.models.workspace import Workspace
 from app.models.chat import ChatSession, ChatMessage
@@ -22,33 +23,31 @@ from app.services.retriever import retrieve_relevant_chunks, build_context
 router = APIRouter(prefix="/chat/sessions", tags=["chat-sessions"])
 
 FORMATTING_RULES = (
-    "Formatting rules:\n"
-    "- Always wrap code in markdown fenced code blocks with the language tag\n"
-    "- Use triple backticks to open and close code blocks, e.g. python or java\n"
-    "- Never write code as plain text outside of a code block\n"
-    "- Use ## headers to organize long answers\n"
-    "- Use bullet points or numbered lists where appropriate\n"
+    "You MUST format ALL responses using strict Markdown syntax. This is mandatory:\n"
+    "- ALL lists MUST use '- ' prefix on every line (e.g., '- item one')\n"
+    "- NEVER write a list as plain text lines without '- ' prefix\n"
+    "- Use ## or ### for section headings\n"
     "- Use **bold** for important terms\n"
-    "- Always format tables with each row on a NEW LINE\n"
-    "- Table format: | Col1 | Col2 | on one line, then |------|------| on the next line, then each data row on its own line\n"
+    "- Always wrap code in fenced code blocks with language tag (e.g., ```python)\n"
+    "- Never write code as plain text outside of a code block\n"
+    "- Format tables with each row on a new line using | Col1 | Col2 | syntax\n"
     "- Never put an entire table on a single line\n"
 )
 
 
 # ─── Endpoint 1: Create a new chat session ────────────────────────────────────
 
+
 @router.post("", response_model=ChatSessionResponse)
 def create_session(request: CreateSessionRequest, db: Session = Depends(get_db)):
-    workspace = db.query(Workspace).filter(
-        Workspace.id == request.workspace_id
-    ).first()
+    workspace = db.query(Workspace).filter(Workspace.id == request.workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     session = ChatSession(
         id=str(uuid.uuid4()),
         workspace_id=request.workspace_id,
-        title=request.title
+        title=request.title,
     )
     db.add(session)
     db.commit()
@@ -60,20 +59,22 @@ def create_session(request: CreateSessionRequest, db: Session = Depends(get_db))
 
 # ─── Endpoint 2: List sessions for a workspace ────────────────────────────────
 
+
 @router.get("", response_model=list[ChatSessionResponse])
 def list_sessions(
     workspace_id: str = Query(..., description="Workspace ID to list sessions for"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    workspace = db.query(Workspace).filter(
-        Workspace.id == workspace_id
-    ).first()
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
 
-    sessions = db.query(ChatSession).filter(
-        ChatSession.workspace_id == workspace_id
-    ).order_by(ChatSession.created_at.desc()).all()
+    sessions = (
+        db.query(ChatSession)
+        .filter(ChatSession.workspace_id == workspace_id)
+        .order_by(ChatSession.created_at.desc())
+        .all()
+    )
 
     print(f"Found {len(sessions)} sessions for workspace {workspace_id}")
     return sessions
@@ -81,11 +82,10 @@ def list_sessions(
 
 # ─── Endpoint 3: Get session with full message history ────────────────────────
 
+
 @router.get("/{session_id}", response_model=ChatSessionDetailResponse)
 def get_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
@@ -95,17 +95,14 @@ def get_session(session_id: str, db: Session = Depends(get_db)):
 
 # ─── Endpoint 4: Delete a chat session ───────────────────────────────────────
 
+
 @router.delete("/{session_id}", status_code=204)
 def delete_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
-    db.query(ChatMessage).filter(
-        ChatMessage.session_id == session_id
-    ).delete()
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
     db.delete(session)
     db.commit()
 
@@ -115,15 +112,12 @@ def delete_session(session_id: str, db: Session = Depends(get_db)):
 
 # ─── Endpoint 5: Rename a chat session ───────────────────────────────────────
 
+
 @router.patch("/{session_id}", response_model=ChatSessionResponse)
 def rename_session(
-    session_id: str,
-    request: UpdateSessionRequest,
-    db: Session = Depends(get_db)
+    session_id: str, request: UpdateSessionRequest, db: Session = Depends(get_db)
 ):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
@@ -137,38 +131,39 @@ def rename_session(
 
 # ─── Endpoint 6: Send a message (non-streaming) ───────────────────────────────
 
+
 @router.post("/{session_id}/message", response_model=SendMessageResponse)
 def send_message(
-    session_id: str,
-    request: SendMessageRequest,
-    db: Session = Depends(get_db)
+    session_id: str, request: SendMessageRequest, db: Session = Depends(get_db)
 ):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
-    history = db.query(ChatMessage).filter(
-        ChatMessage.session_id == session_id
-    ).order_by(ChatMessage.created_at.asc()).all()
+    history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
 
     print(f"Loaded {len(history)} previous messages from session {session_id}")
 
     if request.use_rag:
         chunks = retrieve_relevant_chunks(
             question=request.content,
-            workspace_id=session.workspace_id
+            workspace_id=session.workspace_id,
         )
         context = build_context(chunks)
         print(f"  RAG enabled — found {len(chunks)} relevant chunks")
     else:
         chunks = []
         context = None
-        print(f"  RAG disabled — skipping document retrieval")
+        print("  RAG disabled — skipping document retrieval")
 
     if request.use_rag:
         system_content = (
+            f"{FORMATTING_RULES}\n\n"
             "You are a helpful technical assistant. "
             "Answer questions using the provided document excerpts as your primary source.\n\n"
             "Guidelines:\n"
@@ -176,14 +171,13 @@ def send_message(
             "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
             "- Synthesize information across multiple excerpts when relevant\n"
             "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
-            f"{FORMATTING_RULES}\n\n"
             f"Document excerpts:\n\n{context}"
         )
     else:
         system_content = (
+            f"{FORMATTING_RULES}\n\n"
             "You are a helpful technical assistant. "
             "Answer questions using your own knowledge.\n\n"
-            f"{FORMATTING_RULES}"
         )
 
     messages = [{"role": "system", "content": system_content}]
@@ -204,13 +198,13 @@ def send_message(
         id=str(uuid.uuid4()),
         session_id=session_id,
         role="user",
-        content=request.content
+        content=request.content,
     )
     assistant_message = ChatMessage(
         id=str(uuid.uuid4()),
         session_id=session_id,
         role="assistant",
-        content=answer
+        content=answer,
     )
     db.add(user_message)
     db.add(assistant_message)
@@ -223,29 +217,29 @@ def send_message(
     return SendMessageResponse(
         user_message=ChatMessageResponse.model_validate(user_message),
         assistant_message=ChatMessageResponse.model_validate(assistant_message),
-        chunks_used=len(chunks)
+        chunks_used=len(chunks),
     )
 
 
 # ─── Endpoint 7: Stream a message ────────────────────────────────────────────
 
+
 @router.post("/{session_id}/stream")
 def stream_message(
-    session_id: str,
-    request: SendMessageRequest,
-    db: Session = Depends(get_db)
+    session_id: str, request: SendMessageRequest, db: Session = Depends(get_db)
 ):
     # Step 1 — Validate session
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Chat session not found")
 
     # Step 2 — Load conversation history
-    history = db.query(ChatMessage).filter(
-        ChatMessage.session_id == session_id
-    ).order_by(ChatMessage.created_at.asc()).all()
+    history = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
 
     # Step 3 — RAG retrieval
     chunks = []
@@ -255,7 +249,7 @@ def stream_message(
     if request.use_rag:
         chunks = retrieve_relevant_chunks(
             question=request.content,
-            workspace_id=session.workspace_id
+            workspace_id=session.workspace_id,
         )
         context = build_context(chunks)
         print(f"  RAG enabled — found {len(chunks)} relevant chunks")
@@ -274,22 +268,17 @@ def stream_message(
                 seen_ids.add(doc_id)
                 unique_doc_ids.append(doc_id)
 
-        source_docs = db.query(Document).filter(
-            Document.id.in_(unique_doc_ids)
-        ).all()
-        sources = [
-            {"id": doc.id, "filename": doc.filename}
-            for doc in source_docs
-        ]
+        source_docs = db.query(Document).filter(Document.id.in_(unique_doc_ids)).all()
+        sources = [{"id": doc.id, "filename": doc.filename} for doc in source_docs]
     else:
-        print(f"  RAG disabled — skipping document retrieval")
+        print("  RAG disabled — skipping document retrieval")
 
     # Step 4 — Build mentioned docs context
     mentioned_context = ""
     if request.mentioned_doc_ids:
-        mentioned_docs = db.query(Document).filter(
-            Document.id.in_(request.mentioned_doc_ids)
-        ).all()
+        mentioned_docs = (
+            db.query(Document).filter(Document.id.in_(request.mentioned_doc_ids)).all()
+        )
         print(f"  Mentioned docs: {[d.filename for d in mentioned_docs]}")
 
         for doc in mentioned_docs:
@@ -303,11 +292,9 @@ def stream_message(
                 mentioned_context += build_context(doc_chunks)
             else:
                 print(f"  No chunks found for mentioned doc: {doc.filename}")
+
         if not request.use_rag:
-            sources = [
-                {"id": doc.id, "filename": doc.filename}
-                for doc in mentioned_docs
-                    ]
+            sources = [{"id": doc.id, "filename": doc.filename} for doc in mentioned_docs]
 
     # Step 5 — Build attached files context
     attached_context = ""
@@ -329,23 +316,21 @@ def stream_message(
             full_context += f"\n\nAttached files:\n{attached_context}"
 
         system_content = (
+            f"{FORMATTING_RULES}\n\n"
             "You are a helpful technical assistant. "
             "Answer questions using the provided document excerpts as your primary source.\n\n"
             "Guidelines:\n"
             "- Answer as completely and specifically as possible\n"
             "- If the excerpts contain partial information, use it and clearly indicate what is covered\n"
             "- Synthesize information across multiple excerpts when relevant\n"
-            "- Use tables, bullet points, or structured formatting when it improves clarity\n"
             "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
-            f"{FORMATTING_RULES}\n\n"
             f"{full_context}"
-    )
+        )
     else:
         system_content = (
+            f"{FORMATTING_RULES}\n\n"
             "You are a helpful technical assistant. "
-            "Answer questions using your own knowledge. "
-            "Use tables, bullet points, or structured formatting when it improves clarity.\n\n"
-            f"{FORMATTING_RULES}"
+            "Answer questions using your own knowledge."
         )
 
     messages = [{"role": "system", "content": system_content}]
@@ -369,7 +354,9 @@ def stream_message(
                 return
 
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'content': f'LLM request failed: {str(e)}'})}\n\n"
+                yield (
+                    f"data: {json.dumps({'type': 'error', 'content': f'LLM request failed: {str(e)}'})}\n\n"
+                )
                 return
 
             # ── Save messages to DB ───────────────────────────────────
@@ -377,13 +364,13 @@ def stream_message(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
                 role="user",
-                content=request.content
+                content=request.content,
             )
             assistant_msg = ChatMessage(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
                 role="assistant",
-                content=full_answer
+                content=full_answer,
             )
             db.add(user_msg)
             db.add(assistant_msg)
@@ -398,21 +385,20 @@ def stream_message(
                         {
                             "role": "user",
                             "content": (
-                                f"Create a chat session title for this question: "
-                                f'"{request.content}"\n\n'
-                                f"Rules:\n"
-                                f"- Maximum 5 words\n"
-                                f"- No punctuation\n"
-                                f"- No quotes\n"
-                                f"- Reply with ONLY the title, nothing else\n"
-                                f"- Do NOT answer the question\n\n"
-                                f"Examples:\n"
-                                f"Question: What is the revenue for Q3?\n"
-                                f"Title: Q3 Revenue Summary\n\n"
-                                f"Question: Can you list the agenda of this doc?\n"
-                                f"Title: Document Agenda Overview\n\n"
-                                f"Now generate the title:"
-                            )
+                                f'Create a chat session title for this question: "{request.content}"\n\n'
+                                "Rules:\n"
+                                "- Maximum 5 words\n"
+                                "- No punctuation\n"
+                                "- No quotes\n"
+                                "- Reply with ONLY the title, nothing else\n"
+                                "- Do NOT answer the question\n\n"
+                                "Examples:\n"
+                                "Question: What is the revenue for Q3?\n"
+                                "Title: Q3 Revenue Summary\n\n"
+                                "Question: Can you list the agenda of this doc?\n"
+                                "Title: Document Agenda Overview\n\n"
+                                "Now generate the title:"
+                            ),
                         }
                     ]
                     generated_title = chat_with_llm(title_messages).strip()
@@ -426,14 +412,16 @@ def stream_message(
                     print(f"  Auto-title failed (non-critical): {e}")
 
             # ── Send done event ───────────────────────────────────────
-            done_payload = json.dumps({
-                "type": "done",
-                "user_message_id": user_msg.id,
-                "assistant_message_id": assistant_msg.id,
-                "chunks_used": len(chunks),
-                "sources": sources,
-                "new_title": new_title,
-            })
+            done_payload = json.dumps(
+                {
+                    "type": "done",
+                    "user_message_id": user_msg.id,
+                    "assistant_message_id": assistant_msg.id,
+                    "chunks_used": len(chunks),
+                    "sources": sources,
+                    "new_title": new_title,
+                }
+            )
             yield f"data: {done_payload}\n\n"
 
         except Exception as e:
@@ -444,8 +432,5 @@ def stream_message(
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no"
-        }
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

@@ -99,10 +99,11 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Cancel during extraction — stops immediately, cleans up files
 - [x] Windows file lock fix — delete skips file if processing, processor self-cleans on cancel
 - [x] RAG On/Off toggle per message (Database icon in chat input)
-- [x] Markdown rendering for assistant messages
+- [x] Markdown rendering for assistant messages (react-markdown + remark-gfm)
 - [x] Syntax highlighted code blocks with language detection
 - [x] Copy button on code blocks (icon only, 2s feedback)
-- [x] LLM formatting rules in system prompt (code blocks, tables, bold, headers)
+- [x] LLM formatting rules in system prompt (mandatory Markdown syntax)
+- [x] Tailwind typography plugin registered via @plugin in index.css (Tailwind v4 fix)
 - [x] Improved RAG retrieval — n_results increased from 5 to 15
 - [x] Larger chunk size (1000 chars) and overlap (150 chars) for better context
 - [x] Compact chat input — auto-resize textarea, transparent model selector

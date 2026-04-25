@@ -93,6 +93,14 @@ An internal AI platform with:
 - [x] Source citations under last assistant message (document filenames)
 - [x] Stop streaming button (AbortController, replaces send during generation)
 
+### Markdown Rendering Fix (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Identified root cause — Tailwind CSS v4 ignores tailwind.config.js plugins
+- [x] Fixed @tailwindcss/typography by registering via @plugin in index.css
+- [x] Confirmed LLM was already outputting correct Markdown via debug logging
+- [x] Strengthened FORMATTING_RULES system prompt — explicit bullet/list syntax rules
+- [x] Removed debug logging from chat_sessions.py after fix confirmed
+
 ### Background Processing & Progress Bar (Completed outside sprint plan) ✅ COMPLETE
 
 - [x] Document processing pipeline moved to background task (FastAPI BackgroundTasks)

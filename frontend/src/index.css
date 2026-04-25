@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
