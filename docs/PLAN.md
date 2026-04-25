@@ -175,3 +175,9 @@ An internal AI platform with:
 - [x] Pills shown inside chat input card (file attach = gray, mentions = blue)
 - [x] Folder mention pill removes all its child docs when dismissed
 - [x] ChatPanel refactored into modular files under frontend/src/components/chat/
+- [x] useChatSessions hook — session CRUD, rename, load logic
+- [x] useChatStream hook — streaming, send, stop, abort logic
+- [x] useFileAttach hook — file attach, validation, removal
+- [x] useMention hook — @ mention state, dropdown, commit logic
+- [x] ChatPanel.tsx reduced to ~180 lines (pure composition)
+- [x] Fixed React 19 RefObject<T | null> type compatibility in useMention + SessionsSidebar

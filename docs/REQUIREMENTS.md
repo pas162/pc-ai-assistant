@@ -194,6 +194,10 @@ The chat input has been refactored into `frontend/src/components/chat/`:
 | `CodeBlock.tsx`       | Syntax highlighted code blocks                               |
 | `ModelSelector.tsx`   | Model combobox with search                                   |
 | `MentionDropdown.tsx` | @ mention dropdown (files + folders flat list)               |
+| `useChatSessions.ts`  | Session CRUD, rename, load, workspace switching              |
+| `useChatStream.ts`    | Streaming send/stop, abort controller, sources               |
+| `useFileAttach.ts`    | File attach validation, read, removal                        |
+| `useMention.ts`       | @ mention state, dropdown, commit, outside-click             |
 | `types.ts`            | Shared types: AttachedFile, FolderNode, MentionItem, helpers |
 
 `frontend/src/components/ChatPanel.tsx` re-exports from the new location for backward compatibility.

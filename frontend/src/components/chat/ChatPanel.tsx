@@ -1,31 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { ImperativePanelHandle } from "react-resizable-panels";
-import {
-  getChatSessions,
-  createChatSession,
-  getChatSession,
-  streamMessage,
-  deleteChatSession,
-  updateChatSession,
-  fetchAvailableModels,
-} from "../../api";
-import type {
-  ChatSession,
-  ChatSessionDetail,
-  ChatMessage,
-  ChatSource,
-  Document,
-  Folder,
-} from "../../api";
+import { fetchAvailableModels } from "../../api";
+import type { Document, Folder } from "../../api";
 import type { ToastType } from "../../hooks/useToast";
 import {
-  MessageSquare,
-  Trash2,
   Bot,
   Send,
   ChevronRight,
-  Plus,
   Database,
   Paperclip,
   X,
@@ -36,14 +18,16 @@ import {
 import MessageBubble from "./MessageBubble";
 import ModelSelector from "./ModelSelector";
 import MentionDropdown from "./MentionDropdown";
+import SessionsSidebar from "./SessionsSidebar";
+import { useChatSessions } from "./useChatSessions";
+import { useChatStream } from "./useChatStream";
+import { useFileAttach } from "./useFileAttach";
+import { useMention } from "./useMention";
 import {
   DEFAULT_MODEL,
-  ALLOWED_ATTACH_EXTENSIONS,
-  MAX_FILE_SIZE_BYTES,
-  buildMentionTree,
   collectDocsUnderFolder,
+  ALLOWED_ATTACH_EXTENSIONS,
 } from "./types";
-import type { AttachedFile, FolderNode, MentionItem } from "./types";
 
 interface ChatPanelProps {
   workspaceId: string;
@@ -62,107 +46,83 @@ export default function ChatPanel({
   workspaceDocs,
   workspaceFolders,
 }: ChatPanelProps) {
-  // ── State ─────────────────────────────────────────────────────────────────
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [activeSession, setActiveSession] = useState<ChatSessionDetail | null>(
-    null,
-  );
   const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [streamingText, setStreamingText] = useState("");
   const [sessionsOpen, setSessionsOpen] = useState(true);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
   const [availableModels, setAvailableModels] = useState<string[]>([
     DEFAULT_MODEL,
   ]);
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [useRag, setUseRag] = useState(true);
-  const [lastSources, setLastSources] = useState<ChatSource[]>([]);
 
-  // File attach
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // @ mention
-  const [mentionedDocs, setMentionedDocs] = useState<Document[]>([]);
-  const [mentionedFolders, setMentionedFolders] = useState<FolderNode[]>([]);
-  const [mentionOpen, setMentionOpen] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState("");
-  const [mentionIndex, setMentionIndex] = useState(0);
-  const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // ── Refs ──────────────────────────────────────────────────────────────────
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const streamingTextRef = useRef("");
-  const renameInputRef = useRef<HTMLInputElement>(null);
   const sessionsPanelRef = useRef<ImperativePanelHandle>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const onSessionChangeRef = useRef(onSessionChange);
-  const activeSessionIdRef = useRef(activeSessionId);
 
-  // ── Sync refs ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    onSessionChangeRef.current = onSessionChange;
-  }, [onSessionChange]);
-  useEffect(() => {
-    activeSessionIdRef.current = activeSessionId;
-  }, [activeSessionId]);
-  useEffect(() => {
-    streamingTextRef.current = streamingText;
-  }, [streamingText]);
-  useEffect(() => {
-    if (renamingId) {
-      renameInputRef.current?.focus();
-      renameInputRef.current?.select();
-    }
-  }, [renamingId]);
-  useEffect(() => {
-    if (sessionsOpen) sessionsPanelRef.current?.expand();
-    else sessionsPanelRef.current?.collapse();
-  }, [sessionsOpen]);
+  // ── Hooks ─────────────────────────────────────────────────────────────────
+  const {
+    sessions,
+    setSessions,
+    activeSession,
+    setActiveSession,
+    loadingSessions,
+    renamingId,
+    renameValue,
+    renameInputRef,
+    setRenameValue,
+    handleNewSession,
+    handleSelectSession,
+    handleDeleteSession,
+    handleStartRename,
+    handleRenameSubmit,
+    handleRenameKeyDown,
+  } = useChatSessions({
+    workspaceId,
+    activeSessionId,
+    onSessionChange,
+    showToast,
+  });
 
-  // ── Load sessions ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    const loadSessions = async () => {
-      setLoadingSessions(true);
-      setActiveSession(null);
-      setSessions([]);
-      try {
-        const data = await getChatSessions(workspaceId);
-        if (!cancelled) {
-          setSessions(data);
-          if (data.length > 0) {
-            const targetId = activeSessionIdRef.current ?? data[0].id;
-            const target = data.find((s) => s.id === targetId) ?? data[0];
-            try {
-              const detail = await getChatSession(target.id);
-              if (!cancelled) setActiveSession(detail);
-            } catch {
-              /* ignore */
-            }
-          }
-        }
-      } catch {
-        /* ignore */
-      } finally {
-        if (!cancelled) setLoadingSessions(false);
-      }
-    };
-    loadSessions();
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId]);
+  const { loading, streamingText, lastSources, handleSend, handleStop } =
+    useChatStream({ activeSession, setActiveSession, setSessions, showToast });
+
+  const {
+    attachedFiles,
+    fileInputRef,
+    handleFileAttach,
+    removeAttachedFile,
+    clearAttachedFiles,
+  } = useFileAttach({ showToast });
+
+  const {
+    mentionedDocs,
+    mentionedFolders,
+    mentionOpen,
+    mentionSearch,
+    mentionIndex,
+    mentionDropdownRef,
+    mentionItems,
+    setMentionSearch,
+    setMentionIndex,
+    selectFile,
+    selectFolder,
+    removeMentionedDoc,
+    removeMentionedFolder,
+    closeMention,
+    handleTextareaChange,
+    clearMentions,
+  } = useMention({
+    question,
+    setQuestion,
+    workspaceDocs,
+    workspaceFolders,
+    textareaRef,
+  });
 
   // ── Load models ───────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-    const loadModels = async () => {
+    const load = async () => {
       try {
         setModelsLoading(true);
         const models = await fetchAvailableModels();
@@ -174,184 +134,38 @@ export default function ChatPanel({
         if (!cancelled) setModelsLoading(false);
       }
     };
-    loadModels();
+    load();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  useEffect(() => {
-    if (activeSession?.id)
-      onSessionChangeRef.current(workspaceId, activeSession.id);
-  }, [activeSession?.id, workspaceId]);
-
+  // ── Scroll to bottom ──────────────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeSession?.messages, streamingText]);
 
-  // ── Close mention on outside click ────────────────────────────────────────
+  // ── Panel collapse sync ───────────────────────────────────────────────────
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        mentionDropdownRef.current &&
-        !mentionDropdownRef.current.contains(e.target as Node) &&
-        e.target !== textareaRef.current
-      ) {
-        setMentionOpen(false);
-        setMentionSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    if (sessionsOpen) sessionsPanelRef.current?.expand();
+    else sessionsPanelRef.current?.collapse();
+  }, [sessionsOpen]);
 
-  // ── @ mention computed list ───────────────────────────────────────────────
-  const { rootFolders: mentionFolders } = buildMentionTree(
-    workspaceFolders,
-    workspaceDocs,
-  );
-
-  const mentionItems: MentionItem[] = [
-    ...workspaceDocs
-      .filter(
-        (d) =>
-          d.status === "completed" &&
-          !mentionedDocs.some((m) => m.id === d.id) &&
-          d.filename.toLowerCase().includes(mentionSearch.toLowerCase()),
-      )
-      .map((doc): MentionItem => ({ type: "file", doc })),
-    ...mentionFolders
-      .filter((node) => {
-        const available = collectDocsUnderFolder(node).filter(
-          (d) => !mentionedDocs.some((m) => m.id === d.id),
-        );
-        return (
-          available.length > 0 &&
-          node.name.toLowerCase().includes(mentionSearch.toLowerCase())
-        );
-      })
-      .map((node): MentionItem => ({ type: "folder", node })),
-  ];
-
-  // ── @ mention handlers ────────────────────────────────────────────────────
-  const closeMention = useCallback(() => {
-    setMentionOpen(false);
-    setMentionSearch("");
-    setMentionIndex(0);
-  }, []);
-
-  const commitMention = useCallback(
-    (doc?: Document, folder?: FolderNode) => {
-      const cursor = textareaRef.current?.selectionStart ?? question.length;
-      const textUpToCursor = question.slice(0, cursor);
-      const atIndex = textUpToCursor.lastIndexOf("@");
-      const newQuestion =
-        atIndex !== -1
-          ? question.slice(0, atIndex) + question.slice(cursor)
-          : question;
-      setQuestion(newQuestion);
-
-      if (doc) {
-        setMentionedDocs((prev) =>
-          prev.some((m) => m.id === doc.id) ? prev : [...prev, doc],
-        );
-      }
-      if (folder) {
-        setMentionedFolders((prev) =>
-          prev.some((f) => f.id === folder.id) ? prev : [...prev, folder],
-        );
-        setMentionedDocs((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const toAdd = collectDocsUnderFolder(folder).filter(
-            (d) => !existingIds.has(d.id),
-          );
-          return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
-        });
-      }
-
-      closeMention();
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          const pos = atIndex !== -1 ? atIndex : newQuestion.length;
-          textareaRef.current.setSelectionRange(pos, pos);
-        }
-      }, 0);
-    },
-    [question, closeMention],
-  );
-
-  const selectFile = useCallback(
-    (doc: Document) => commitMention(doc, undefined),
-    [commitMention],
-  );
-  const selectFolder = useCallback(
-    (node: FolderNode) => commitMention(undefined, node),
-    [commitMention],
-  );
-  const removeMentionedDoc = (id: string) =>
-    setMentionedDocs((prev) => prev.filter((d) => d.id !== id));
-  const removeMentionedFolder = (id: string) => {
-    const node = mentionedFolders.find((f) => f.id === id);
-    setMentionedFolders((prev) => prev.filter((f) => f.id !== id));
-    if (node) {
-      const docIds = new Set(collectDocsUnderFolder(node).map((d) => d.id));
-      setMentionedDocs((prev) => prev.filter((d) => !docIds.has(d.id)));
-    }
+  // ── Send wrapper ──────────────────────────────────────────────────────────
+  const onSend = () => {
+    handleSend(
+      question,
+      selectedModel,
+      useRag,
+      attachedFiles,
+      mentionedDocs.map((d) => d.id),
+      () => {
+        setQuestion("");
+        clearAttachedFiles();
+        clearMentions();
+      },
+    );
   };
-
-  // ── Textarea change ───────────────────────────────────────────────────────
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setQuestion(val);
-
-    // Single resize only here — no onInput on the textarea
-    e.target.style.height = "auto";
-    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-
-    const cursor = e.target.selectionStart;
-    const textUpToCursor = val.slice(0, cursor);
-    const atIndex = textUpToCursor.lastIndexOf("@");
-    if (atIndex !== -1) {
-      const charBefore = atIndex > 0 ? textUpToCursor[atIndex - 1] : " ";
-      if (charBefore === " " || atIndex === 0) {
-        const query = textUpToCursor.slice(atIndex + 1);
-        if (!query.includes(" ")) {
-          setMentionSearch(query);
-          setMentionIndex(0);
-          if (!mentionOpen) setMentionOpen(true);
-          return;
-        }
-      }
-    }
-    if (mentionOpen) closeMention();
-  };
-
-  // ── File attach ───────────────────────────────────────────────────────────
-  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = "";
-    files.forEach((file) => {
-      const ext = "." + file.name.split(".").pop()?.toLowerCase();
-      if (!ALLOWED_ATTACH_EXTENSIONS.includes(ext)) {
-        showToast(`"${file.name}" is not a supported file type.`, "error");
-        return;
-      }
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        showToast(`"${file.name}" exceeds the 500KB limit.`, "error");
-        return;
-      }
-      if (attachedFiles.some((f) => f.filename === file.name)) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const content = ev.target?.result as string;
-        setAttachedFiles((prev) => [...prev, { filename: file.name, content }]);
-      };
-      reader.readAsText(file, "utf-8");
-    });
-  };
-  const removeAttachedFile = (filename: string) =>
-    setAttachedFiles((prev) => prev.filter((f) => f.filename !== filename));
 
   // ── Keyboard nav ──────────────────────────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -385,215 +199,8 @@ export default function ChatPanel({
     }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      onSend();
     }
-  };
-
-  // ── Send ──────────────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    if (
-      !activeSession ||
-      (!question.trim() &&
-        attachedFiles.length === 0 &&
-        mentionedDocs.length === 0) ||
-      loading
-    )
-      return;
-
-    const questionText = question.trim();
-    const filesToSend = [...attachedFiles];
-    const mentionedIds = mentionedDocs.map((d) => d.id);
-
-    setQuestion("");
-    setAttachedFiles([]);
-    setMentionedDocs([]);
-    setMentionedFolders([]);
-    setLoading(true);
-    setStreamingText("");
-    setLastSources([]);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const tempUserMessage: ChatMessage = {
-      id: "temp-" + Date.now(),
-      role: "user",
-      content: questionText,
-      created_at: new Date().toISOString(),
-    };
-    setActiveSession((prev) =>
-      prev ? { ...prev, messages: [...prev.messages, tempUserMessage] } : prev,
-    );
-
-    try {
-      await streamMessage(
-        activeSession.id,
-        questionText,
-        selectedModel,
-        useRag,
-        (chunk) => {
-          setStreamingText((prev) => prev + chunk);
-        },
-        (data) => {
-          setLastSources(data.sources ?? []);
-          setActiveSession((prev) => {
-            if (!prev) return prev;
-            const withoutTemp = prev.messages.filter(
-              (m) => !m.id.startsWith("temp-"),
-            );
-            return {
-              ...prev,
-              messages: [
-                ...withoutTemp,
-                {
-                  id: data.user_message_id,
-                  role: "user" as const,
-                  content: questionText,
-                  created_at: new Date().toISOString(),
-                },
-                {
-                  id: data.assistant_message_id,
-                  role: "assistant" as const,
-                  content: streamingTextRef.current,
-                  created_at: new Date().toISOString(),
-                },
-              ],
-            };
-          });
-          if (data.new_title && activeSession) {
-            setSessions((prev) =>
-              prev.map((s) =>
-                s.id === activeSession.id
-                  ? { ...s, title: data.new_title! }
-                  : s,
-              ),
-            );
-            setActiveSession((prev) =>
-              prev ? { ...prev, title: data.new_title! } : prev,
-            );
-          }
-          setStreamingText("");
-          setLoading(false);
-          abortControllerRef.current = null;
-        },
-        (error) => {
-          setActiveSession((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  messages: prev.messages.filter(
-                    (m) => !m.id.startsWith("temp-"),
-                  ),
-                }
-              : prev,
-          );
-          setStreamingText("");
-          setLoading(false);
-          abortControllerRef.current = null;
-          const isTokenError = error.toLowerCase().includes("api token");
-          showToast(
-            isTokenError
-              ? "LLM API token not set. Please open Settings and enter your API token."
-              : `Streaming failed: ${error}`,
-            "error",
-          );
-        },
-        controller.signal,
-        filesToSend,
-        mentionedIds,
-      );
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setStreamingText("");
-        setLoading(false);
-        return;
-      }
-      setActiveSession((prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: prev.messages.filter((m) => !m.id.startsWith("temp-")),
-            }
-          : prev,
-      );
-      setStreamingText("");
-      setLoading(false);
-      showToast("Failed to send message. Please try again.", "error");
-    }
-  };
-
-  const handleStop = () => {
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = null;
-    setLoading(false);
-    setStreamingText("");
-    showToast("Stopped", "info");
-  };
-
-  // ── Session handlers ──────────────────────────────────────────────────────
-  const handleNewSession = async () => {
-    try {
-      const newSession = await createChatSession(workspaceId, "New Chat");
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveSession({ ...newSession, messages: [] });
-      showToast("New chat created!", "success");
-    } catch {
-      showToast("Failed to create chat session", "error");
-    }
-  };
-  const handleSelectSession = async (session: ChatSession) => {
-    try {
-      const detail = await getChatSession(session.id);
-      setActiveSession(detail);
-    } catch {
-      showToast("Failed to load chat session", "error");
-    }
-  };
-  const handleDeleteSession = async (
-    e: React.MouseEvent,
-    sessionId: string,
-  ) => {
-    e.stopPropagation();
-    if (!window.confirm("Delete this chat session?")) return;
-    try {
-      await deleteChatSession(sessionId);
-      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-      if (activeSession?.id === sessionId) setActiveSession(null);
-      showToast("Chat deleted", "info");
-    } catch {
-      showToast("Failed to delete session", "error");
-    }
-  };
-  const handleStartRename = (e: React.MouseEvent, session: ChatSession) => {
-    e.stopPropagation();
-    setRenamingId(session.id);
-    setRenameValue(session.title);
-  };
-  const handleRenameSubmit = async (sessionId: string) => {
-    const trimmed = renameValue.trim();
-    if (!trimmed) {
-      setRenamingId(null);
-      return;
-    }
-    try {
-      await updateChatSession(sessionId, trimmed);
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
-      );
-      if (activeSession?.id === sessionId)
-        setActiveSession((prev) => (prev ? { ...prev, title: trimmed } : prev));
-    } catch {
-      showToast("Failed to rename session", "error");
-    } finally {
-      setRenamingId(null);
-    }
-  };
-  const handleRenameKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    sessionId: string,
-  ) => {
-    if (e.key === "Enter") handleRenameSubmit(sessionId);
-    if (e.key === "Escape") setRenamingId(null);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -615,13 +222,12 @@ export default function ChatPanel({
         autoSaveId="chat-layout"
         className="flex-1"
       >
-        {/* ── Sessions panel ── */}
         <Panel
           ref={sessionsPanelRef}
           defaultSize={22}
           minSize={15}
           maxSize={40}
-          collapsible={true}
+          collapsible
           collapsedSize={0}
           onCollapse={() => setSessionsOpen(false)}
           onExpand={() => setSessionsOpen(true)}
@@ -629,101 +235,31 @@ export default function ChatPanel({
           className="flex flex-col gap-2 pt-2 pr-1 pb-2 pl-1"
         >
           {sessionsOpen && (
-            <>
-              <button
-                onClick={handleNewSession}
-                className="flex items-center justify-between px-3 py-2 border-b
-                           border-gray-700 w-full hover:bg-gray-800 transition-colors
-                           group shrink-0"
-                title="New Chat"
-              >
-                <span
-                  className="text-xs font-semibold text-gray-400 uppercase
-                                 tracking-wide group-hover:text-gray-200 transition-colors"
-                >
-                  Chats
-                </span>
-                <Plus
-                  size={15}
-                  className="text-gray-400 group-hover:text-white transition-colors"
-                />
-              </button>
-
-              <div className="flex-1 overflow-y-auto flex flex-col gap-1 py-1 custom-scrollbar">
-                {loadingSessions ? (
-                  <p className="text-xs text-gray-500 text-center mt-4">
-                    Loading...
-                  </p>
-                ) : sessions.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center mt-4">
-                    No chats yet
-                  </p>
-                ) : (
-                  sessions.map((session) => (
-                    <div
-                      key={session.id}
-                      onClick={() =>
-                        renamingId !== session.id &&
-                        handleSelectSession(session)
-                      }
-                      className={`group w-full flex items-center justify-between
-                        px-3 py-2 rounded mx-1 cursor-pointer transition-colors
-                        ${
-                          activeSession?.id === session.id
-                            ? "bg-blue-600 text-white font-medium"
-                            : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-                        }`}
-                    >
-                      {renamingId === session.id ? (
-                        <input
-                          ref={renameInputRef}
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => handleRenameKeyDown(e, session.id)}
-                          onBlur={() => handleRenameSubmit(session.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex-1 bg-gray-700 text-white text-xs px-1 py-0.5
-                                     rounded outline-none border border-blue-400 min-w-0"
-                        />
-                      ) : (
-                        <span
-                          className="truncate flex-1 flex items-center gap-1 text-xs"
-                          onDoubleClick={(e) => handleStartRename(e, session)}
-                          title="Double-click to rename"
-                        >
-                          <MessageSquare
-                            size={10}
-                            className="shrink-0 text-blue-400"
-                          />
-                          {session.title}
-                        </span>
-                      )}
-                      {renamingId !== session.id && (
-                        <button
-                          onClick={(e) => handleDeleteSession(e, session.id)}
-                          className="opacity-0 group-hover:opacity-100 text-gray-400
-                                     hover:text-red-400 ml-1 shrink-0 transition-opacity"
-                          title="Delete session"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+            <SessionsSidebar
+              sessions={sessions}
+              activeSession={activeSession}
+              loadingSessions={loadingSessions}
+              renamingId={renamingId}
+              renameValue={renameValue}
+              renameInputRef={renameInputRef}
+              onNewSession={handleNewSession}
+              onSelectSession={handleSelectSession}
+              onDeleteSession={handleDeleteSession}
+              onStartRename={handleStartRename}
+              onRenameChange={(val) => setRenameValue(val)}
+              onRenameSubmit={handleRenameSubmit}
+              onRenameKeyDown={handleRenameKeyDown}
+            />
           )}
         </Panel>
 
         <PanelResizeHandle
           hitAreaMargins={{ coarse: 10, fine: 5 }}
           className={`w-1 bg-gray-700 hover:bg-blue-500 active:bg-blue-400
-                     transition-colors cursor-col-resize
-                     ${!sessionsOpen ? "hidden" : ""}`}
+                     transition-colors cursor-col-resize ${!sessionsOpen ? "hidden" : ""}`}
         />
 
-        {/* ── Main chat panel ── */}
+        {/* ── Main chat area ── */}
         <Panel className="flex flex-col overflow-hidden">
           {!activeSession ? (
             <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
@@ -771,14 +307,14 @@ export default function ChatPanel({
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              {/* ── Input area ── */}
+
+              {/* Input area */}
               <div className="border-t border-gray-700 p-3">
                 <div
                   className="flex flex-col bg-gray-800 border border-gray-600
-                                rounded-xl focus-within:border-blue-500
-                                transition-colors relative"
+                                rounded-xl focus-within:border-blue-500 transition-colors relative"
                 >
-                  {/* Pills row — only shown when there are pills */}
+                  {/* Pills */}
                   {(attachedFiles.length > 0 ||
                     mentionedFolders.length > 0 ||
                     mentionedDocs.length > 0) && (
@@ -845,11 +381,11 @@ export default function ChatPanel({
                     </div>
                   )}
 
-                  {/* Textarea — single onChange handler, no onInput */}
+                  {/* Textarea */}
                   <textarea
                     ref={textareaRef}
                     value={question}
-                    onChange={handleTextareaChange}
+                    onChange={(e) => handleTextareaChange(e, setQuestion)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask a question... (type @ to mention a document)"
                     rows={1}
@@ -857,12 +393,11 @@ export default function ChatPanel({
                     className="flex-1 resize-none bg-transparent border-none
                                px-3 pt-2.5 pb-1 text-sm text-gray-200
                                placeholder-gray-500 focus:outline-none
-                               disabled:opacity-50 overflow-y-auto
-                               min-h-9 max-h-30"
+                               disabled:opacity-50 overflow-y-auto min-h-9 max-h-30"
                     style={{ height: "36px" }}
                   />
 
-                  {/* @ mention dropdown */}
+                  {/* Mention dropdown */}
                   {mentionOpen && (
                     <MentionDropdown
                       dropdownRef={mentionDropdownRef}
@@ -906,12 +441,7 @@ export default function ChatPanel({
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         title="Attach files"
-                        className={`text-xs transition-colors shrink-0
-                          ${
-                            attachedFiles.length > 0
-                              ? "text-blue-400 hover:text-blue-300"
-                              : "text-gray-600 hover:text-gray-400"
-                          }`}
+                        className={`text-xs transition-colors shrink-0 ${attachedFiles.length > 0 ? "text-blue-400 hover:text-blue-300" : "text-gray-600 hover:text-gray-400"}`}
                       >
                         <Paperclip size={13} />
                       </button>
@@ -923,37 +453,29 @@ export default function ChatPanel({
                             ? "RAG enabled — click to disable"
                             : "RAG disabled — click to enable"
                         }
-                        className={`text-xs transition-colors shrink-0
-                          ${
-                            useRag
-                              ? "text-blue-400 hover:text-blue-300"
-                              : "text-gray-600 hover:text-gray-400"
-                          }`}
+                        className={`text-xs transition-colors shrink-0 ${useRag ? "text-blue-400 hover:text-blue-300" : "text-gray-600 hover:text-gray-400"}`}
                       >
                         <Database size={13} />
                       </button>
                     </div>
-
                     {loading ? (
                       <button
                         onClick={handleStop}
                         title="Stop generating"
-                        className="w-6 h-6 flex items-center justify-center
-                                   text-red-400 hover:text-red-300 transition-colors shrink-0"
+                        className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-300 transition-colors shrink-0"
                       >
                         <StopCircle size={15} />
                       </button>
                     ) : (
                       <button
-                        onClick={handleSend}
+                        onClick={onSend}
                         disabled={
                           !question.trim() &&
                           attachedFiles.length === 0 &&
                           mentionedDocs.length === 0
                         }
                         title="Send message"
-                        className="w-6 h-6 flex items-center justify-center
-                                   text-blue-400 hover:text-blue-300
+                        className="w-6 h-6 flex items-center justify-center text-blue-400 hover:text-blue-300
                                    disabled:text-gray-600 transition-colors shrink-0"
                       >
                         <Send size={14} />
