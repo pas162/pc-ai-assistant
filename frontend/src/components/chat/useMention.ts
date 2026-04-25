@@ -90,6 +90,7 @@ export function useMention({
     mentionSearch,
     mentionMode,
   ]);
+
   const closeMention = useCallback(() => {
     setMentionOpen(false);
     setMentionSearch("");
@@ -110,7 +111,9 @@ export function useMention({
 
   const commitMention = useCallback(
     (doc?: Document, folder?: FolderNode) => {
-      const cursor = textareaRef.current?.selectionStart ?? question.length;
+      const textarea = textareaRef.current;
+      const cursor = textarea?.selectionStart ?? question.length;
+
       const textUpToCursor = question.slice(0, cursor);
       const atIndex = textUpToCursor.lastIndexOf("@");
 
@@ -121,22 +124,24 @@ export function useMention({
 
       setQuestion(newQuestion);
 
-      if (doc) {
-        setMentionedDocs((prev) =>
-          prev.some((m) => m.id === doc.id) ? prev : [...prev, doc],
-        );
-      }
+      if (doc)
+        setMentionedDocs((prev) => {
+          const next = prev.some((m) => m.id === doc.id)
+            ? prev
+            : [...prev, doc];
+          return next;
+        });
 
       if (folder) {
         setMentionedFolders((prev) =>
           prev.some((f) => f.id === folder.id) ? prev : [...prev, folder],
         );
+
+        const docs = collectDocsUnderFolder(folder);
         setMentionedDocs((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id));
-          const toAdd = collectDocsUnderFolder(folder).filter(
-            (d) => !existingIds.has(d.id),
-          );
-          return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+          const existingIds = new Set(prev.map((d) => d.id));
+          const toAdd = docs.filter((d) => !existingIds.has(d.id));
+          return toAdd.length ? [...prev, ...toAdd] : prev;
         });
       }
 

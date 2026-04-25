@@ -10,11 +10,11 @@ from app.models.document import Document
 from app.schemas.chat import (
     CreateSessionRequest,
     SendMessageRequest,
-    SendMessageResponse,
+    UpdateSessionRequest,
     ChatSessionResponse,
     ChatSessionDetailResponse,
     ChatMessageResponse,
-    UpdateSessionRequest,
+    SendMessageResponse,
 )
 from app.core.llm_client import chat_with_llm, stream_chat_with_llm
 from app.services.retriever import retrieve_relevant_chunks, build_context
@@ -35,7 +35,7 @@ FORMATTING_RULES = (
 )
 
 
-# ─── Endpoint 1: Create a new chat session ─────────────────────────────────────
+# ─── Endpoint 1: Create a new chat session ────────────────────────────────────
 
 @router.post("", response_model=ChatSessionResponse)
 def create_session(request: CreateSessionRequest, db: Session = Depends(get_db)):
@@ -46,10 +46,10 @@ def create_session(request: CreateSessionRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     session = ChatSession(
-                id=str(uuid.uuid4()),
+        id=str(uuid.uuid4()),
         workspace_id=request.workspace_id,
         title=request.title
-            )
+    )
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -58,7 +58,84 @@ def create_session(request: CreateSessionRequest, db: Session = Depends(get_db))
     return session
 
 
-# ─── Endpoint 2: Send a message ────────────────────────────────────────────────
+# ─── Endpoint 2: List sessions for a workspace ────────────────────────────────
+
+@router.get("", response_model=list[ChatSessionResponse])
+def list_sessions(
+    workspace_id: str = Query(..., description="Workspace ID to list sessions for"),
+    db: Session = Depends(get_db)
+):
+    workspace = db.query(Workspace).filter(
+        Workspace.id == workspace_id
+    ).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    sessions = db.query(ChatSession).filter(
+        ChatSession.workspace_id == workspace_id
+    ).order_by(ChatSession.created_at.desc()).all()
+
+    print(f"Found {len(sessions)} sessions for workspace {workspace_id}")
+    return sessions
+
+
+# ─── Endpoint 3: Get session with full message history ────────────────────────
+
+@router.get("/{session_id}", response_model=ChatSessionDetailResponse)
+def get_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    session.messages.sort(key=lambda m: m.created_at)
+    return session
+
+
+# ─── Endpoint 4: Delete a chat session ───────────────────────────────────────
+
+@router.delete("/{session_id}", status_code=204)
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    db.query(ChatMessage).filter(
+        ChatMessage.session_id == session_id
+    ).delete()
+    db.delete(session)
+    db.commit()
+
+    print(f"Deleted chat session {session_id} and all its messages")
+    return None
+
+
+# ─── Endpoint 5: Rename a chat session ───────────────────────────────────────
+
+@router.patch("/{session_id}", response_model=ChatSessionResponse)
+def rename_session(
+    session_id: str,
+    request: UpdateSessionRequest,
+    db: Session = Depends(get_db)
+):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == session_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    session.title = request.title.strip() or "New Chat"
+    db.commit()
+    db.refresh(session)
+
+    print(f"Renamed session {session_id} to: {session.title}")
+    return session
+
+
+# ─── Endpoint 6: Send a message (non-streaming) ───────────────────────────────
 
 @router.post("/{session_id}/message", response_model=SendMessageResponse)
 def send_message(
@@ -78,10 +155,9 @@ def send_message(
 
     print(f"Loaded {len(history)} previous messages from session {session_id}")
 
-    # Step 3 — Retrieve relevant chunks (only if RAG is enabled)
     if request.use_rag:
         chunks = retrieve_relevant_chunks(
-            question=request.question,
+            question=request.content,
             workspace_id=session.workspace_id
         )
         context = build_context(chunks)
@@ -90,7 +166,7 @@ def send_message(
         chunks = []
         context = None
         print(f"  RAG disabled — skipping document retrieval")
-    # Step 4 — Build messages array
+
     if request.use_rag:
         system_content = (
             "You are a helpful technical assistant. "
@@ -113,30 +189,29 @@ def send_message(
     messages = [{"role": "system", "content": system_content}]
     for msg in history:
         messages.append({"role": msg.role, "content": msg.content})
-    messages.append({"role": "user", "content": request.question})
+    messages.append({"role": "user", "content": request.content})
 
     print(f"  Calling LLM with {len(messages)} messages...")
     try:
         answer = chat_with_llm(messages, model=request.model)
     except ValueError as e:
-        # Empty token or misconfigured settings — guide user to Settings UI
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM call failed: {str(e)}")
     print(f"  Answer received ({len(answer)} characters)")
 
     user_message = ChatMessage(
-                id=str(uuid.uuid4()),
-                session_id=session_id,
-                role="user",
-                content=request.question
-            )
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        role="user",
+        content=request.content
+    )
     assistant_message = ChatMessage(
-                id=str(uuid.uuid4()),
-                session_id=session_id,
-                role="assistant",
+        id=str(uuid.uuid4()),
+        session_id=session_id,
+        role="assistant",
         content=answer
-            )
+    )
     db.add(user_message)
     db.add(assistant_message)
     db.commit()
@@ -149,65 +224,10 @@ def send_message(
         user_message=ChatMessageResponse.model_validate(user_message),
         assistant_message=ChatMessageResponse.model_validate(assistant_message),
         chunks_used=len(chunks)
-                            )
+    )
 
 
-# ─── Endpoint 3: List sessions for a workspace ─────────────────────────────────
-
-@router.get("", response_model=list[ChatSessionResponse])
-def list_sessions(
-    workspace_id: str = Query(..., description="Workspace ID to list sessions for"),
-    db: Session = Depends(get_db)
-):
-    workspace = db.query(Workspace).filter(
-        Workspace.id == workspace_id
-    ).first()
-    if not workspace:
-        raise HTTPException(status_code=404, detail="Workspace not found")
-
-    sessions = db.query(ChatSession).filter(
-        ChatSession.workspace_id == workspace_id
-    ).order_by(ChatSession.created_at.desc()).all()
-
-    print(f"Found {len(sessions)} sessions for workspace {workspace_id}")
-    return sessions
-
-
-# ─── Endpoint 4: Get session with full message history ─────────────────────────
-
-@router.get("/{session_id}", response_model=ChatSessionDetailResponse)
-def get_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Chat session not found")
-
-    session.messages.sort(key=lambda m: m.created_at)
-    return session
-
-
-# ─── Endpoint 5: Delete a chat session ────────────────────────────────────────
-
-@router.delete("/{session_id}", status_code=204)
-def delete_session(session_id: str, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Chat session not found")
-
-    db.query(ChatMessage).filter(
-        ChatMessage.session_id == session_id
-    ).delete()
-    db.delete(session)
-    db.commit()
-
-    print(f"Deleted chat session {session_id} and all its messages")
-    return None
-
-
-# ─── Endpoint 6: Stream a message ──────────────────────────────────────────────
+# ─── Endpoint 7: Stream a message ────────────────────────────────────────────
 
 @router.post("/{session_id}/stream")
 def stream_message(
@@ -215,7 +235,7 @@ def stream_message(
     request: SendMessageRequest,
     db: Session = Depends(get_db)
 ):
-    # Step 1 — Validate session exists
+    # Step 1 — Validate session
     session = db.query(ChatSession).filter(
         ChatSession.id == session_id
     ).first()
@@ -227,21 +247,30 @@ def stream_message(
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.created_at.asc()).all()
 
-    # Step 3 — Retrieve relevant chunks (only if RAG is enabled)
+    # Step 3 — RAG retrieval
+    chunks = []
+    context = None
+    sources = []
+
     if request.use_rag:
         chunks = retrieve_relevant_chunks(
-            question=request.question,
+            question=request.content,
             workspace_id=session.workspace_id
         )
         context = build_context(chunks)
         print(f"  RAG enabled — found {len(chunks)} relevant chunks")
 
-        # Resolve unique document filenames from chunk metadata
         seen_ids = set()
         unique_doc_ids = []
         for chunk in chunks:
             doc_id = chunk["document_id"]
             if doc_id and doc_id not in seen_ids:
+                seen_ids.add(doc_id)
+                unique_doc_ids.append(doc_id)
+
+        # Include mentioned doc ids in sources too
+        for doc_id in request.mentioned_doc_ids:
+            if doc_id not in seen_ids:
                 seen_ids.add(doc_id)
                 unique_doc_ids.append(doc_id)
 
@@ -253,13 +282,52 @@ def stream_message(
             for doc in source_docs
         ]
     else:
-        chunks = []
-        context = None
-        sources = []
         print(f"  RAG disabled — skipping document retrieval")
 
-    # Step 4 — Build messages array
-    if request.use_rag:
+    # Step 4 — Build mentioned docs context
+    mentioned_context = ""
+    if request.mentioned_doc_ids:
+        mentioned_docs = db.query(Document).filter(
+            Document.id.in_(request.mentioned_doc_ids)
+        ).all()
+        print(f"  Mentioned docs: {[d.filename for d in mentioned_docs]}")
+
+        for doc in mentioned_docs:
+            doc_chunks = retrieve_relevant_chunks(
+                question=request.content,
+                workspace_id=session.workspace_id,
+                filter_doc_id=doc.id,
+            )
+            if doc_chunks:
+                mentioned_context += f"\n\n--- From: {doc.filename} ---\n"
+                mentioned_context += build_context(doc_chunks)
+            else:
+                print(f"  No chunks found for mentioned doc: {doc.filename}")
+        if not request.use_rag:
+            sources = [
+                {"id": doc.id, "filename": doc.filename}
+                for doc in mentioned_docs
+                    ]
+
+    # Step 5 — Build attached files context
+    attached_context = ""
+    if request.attached_files:
+        for f in request.attached_files:
+            attached_context += f"\n\n--- Attached file: {f.filename} ---\n{f.content}"
+        print(f"  Attached files: {[f.filename for f in request.attached_files]}")
+
+    # Step 6 — Build system prompt
+    has_context = context or mentioned_context or attached_context
+
+    if has_context:
+        full_context = ""
+        if context:
+            full_context += f"Document excerpts:\n\n{context}"
+        if mentioned_context:
+            full_context += f"\n\nMentioned documents:\n{mentioned_context}"
+        if attached_context:
+            full_context += f"\n\nAttached files:\n{attached_context}"
+
         system_content = (
             "You are a helpful technical assistant. "
             "Answer questions using the provided document excerpts as your primary source.\n\n"
@@ -270,8 +338,8 @@ def stream_message(
             "- Use tables, bullet points, or structured formatting when it improves clarity\n"
             "- Only say information is unavailable if it is truly absent from ALL excerpts\n\n"
             f"{FORMATTING_RULES}\n\n"
-            f"Document excerpts:\n\n{context}"
-            )
+            f"{full_context}"
+    )
     else:
         system_content = (
             "You are a helpful technical assistant. "
@@ -283,13 +351,13 @@ def stream_message(
     messages = [{"role": "system", "content": system_content}]
     for msg in history:
         messages.append({"role": msg.role, "content": msg.content})
-    messages.append({"role": "user", "content": request.question})
+    messages.append({"role": "user", "content": request.content})
 
-    # Step 5 — Generator function: streams chunks, then saves to DB
+    # Step 7 — Stream generator
     def generate():
         full_answer = ""
         try:
-            # ── Stream chunks from LLM ──────────────────────────────────
+            # ── Stream chunks from LLM ────────────────────────────────
             try:
                 for text_chunk in stream_chat_with_llm(messages, model=request.model):
                     full_answer += text_chunk
@@ -297,7 +365,6 @@ def stream_message(
                     yield f"data: {payload}\n\n"
 
             except ValueError as e:
-                # Empty token or missing base URL — guide user to Settings
                 yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
                 return
 
@@ -305,12 +372,12 @@ def stream_message(
                 yield f"data: {json.dumps({'type': 'error', 'content': f'LLM request failed: {str(e)}'})}\n\n"
                 return
 
-            # ── Save both messages to PostgreSQL ───────────────────────
+            # ── Save messages to DB ───────────────────────────────────
             user_msg = ChatMessage(
                 id=str(uuid.uuid4()),
                 session_id=session_id,
                 role="user",
-                content=request.question
+                content=request.content
             )
             assistant_msg = ChatMessage(
                 id=str(uuid.uuid4()),
@@ -322,7 +389,7 @@ def stream_message(
             db.add(assistant_msg)
             db.commit()
 
-            # ── Auto-title: only on the FIRST message ──────────────────
+            # ── Auto-title on first message ───────────────────────────
             new_title = None
             if session.title == "New Chat" and len(history) == 0:
                 try:
@@ -332,7 +399,7 @@ def stream_message(
                             "role": "user",
                             "content": (
                                 f"Create a chat session title for this question: "
-                                f'"{request.question}"\n\n'
+                                f'"{request.content}"\n\n'
                                 f"Rules:\n"
                                 f"- Maximum 5 words\n"
                                 f"- No punctuation\n"
@@ -358,7 +425,7 @@ def stream_message(
                 except Exception as e:
                     print(f"  Auto-title failed (non-critical): {e}")
 
-            # ── Send final done event ───────────────────────────────────
+            # ── Send done event ───────────────────────────────────────
             done_payload = json.dumps({
                 "type": "done",
                 "user_message_id": user_msg.id,
@@ -373,7 +440,7 @@ def stream_message(
             error_payload = json.dumps({"type": "error", "content": str(e)})
             yield f"data: {error_payload}\n\n"
 
-    # Step 6 — Return StreamingResponse
+    # Step 8 — Return StreamingResponse
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
@@ -382,25 +449,3 @@ def stream_message(
             "X-Accel-Buffering": "no"
         }
     )
-
-
-# ─── Endpoint 7: Rename a chat session ────────────────────────────────────────
-
-@router.patch("/{session_id}", response_model=ChatSessionResponse)
-def rename_session(
-    session_id: str,
-    request: UpdateSessionRequest,
-    db: Session = Depends(get_db)
-):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == session_id
-    ).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Chat session not found")
-
-    session.title = request.title.strip() or "New Chat"
-    db.commit()
-    db.refresh(session)
-
-    print(f"Renamed session {session_id} to: {session.title}")
-    return session

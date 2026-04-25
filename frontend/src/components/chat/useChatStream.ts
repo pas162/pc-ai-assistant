@@ -2,12 +2,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { streamMessage } from "../../api";
 import type {
   ChatSessionDetail,
-  ChatMessage,
   ChatSource,
   ChatSession,
+  StreamDoneData,
 } from "../../api";
 import type { ToastType } from "../../hooks/useToast";
-import type { AttachedFile } from "./types";
+import type { AttachedFile, ChatMessageWithMeta } from "./types";
 
 interface UseChatStreamProps {
   activeSession: ChatSessionDetail | null;
@@ -18,6 +18,8 @@ interface UseChatStreamProps {
   showToast: (message: string, type: ToastType) => void;
 }
 
+type MentionedDoc = { id: string; filename: string };
+
 export function useChatStream({
   activeSession,
   setActiveSession,
@@ -27,10 +29,10 @@ export function useChatStream({
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [lastSources, setLastSources] = useState<ChatSource[]>([]);
-
   const streamingTextRef = useRef("");
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Keep streamingTextRef in sync
   useEffect(() => {
     streamingTextRef.current = streamingText;
   }, [streamingText]);
@@ -42,6 +44,7 @@ export function useChatStream({
       useRag: boolean,
       attachedFiles: AttachedFile[],
       mentionedIds: string[],
+      mentionedDocs: MentionedDoc[],
       onClear: () => void,
     ) => {
       if (
@@ -53,7 +56,14 @@ export function useChatStream({
       )
         return;
 
+      // ── Snapshot values before clearing ──────────────────────────────────
+      const questionText = question.trim();
+      const filesToSend = [...attachedFiles];
+      const idsToSend = [...mentionedIds];
+      const docsToShow = [...mentionedDocs];
+
       onClear();
+
       setLoading(true);
       setStreamingText("");
       setLastSources([]);
@@ -61,11 +71,13 @@ export function useChatStream({
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      const tempMsg: ChatMessage = {
+      // ── Optimistic user message ───────────────────────────────────────────
+      const tempMsg: ChatMessageWithMeta = {
         id: "temp-" + Date.now(),
         role: "user",
-        content: question,
+        content: questionText,
         created_at: new Date().toISOString(),
+        mentionedDocs: docsToShow,
       };
 
       setActiveSession((prev) =>
@@ -75,20 +87,22 @@ export function useChatStream({
       try {
         await streamMessage(
           activeSession.id,
-          question,
+          questionText,
           selectedModel,
           useRag,
-          (chunk) => setStreamingText((prev) => prev + chunk),
-          (data) => {
+          // ── onChunk ──
+          (chunk) => {
+            setStreamingText((prev) => prev + chunk);
+          },
+          // ── onDone ──
+          (data: StreamDoneData) => {
+            console.log("[handleSend] onDone received:", data);
             setLastSources(data.sources ?? []);
-
             setActiveSession((prev) => {
               if (!prev) return prev;
-
               const withoutTemp = prev.messages.filter(
                 (m) => !m.id.startsWith("temp-"),
               );
-
               return {
                 ...prev,
                 messages: [
@@ -96,19 +110,18 @@ export function useChatStream({
                   {
                     id: data.user_message_id,
                     role: "user" as const,
-                    content: question,
+                    content: questionText,
                     created_at: new Date().toISOString(),
-                  },
+                  } as ChatMessageWithMeta,
                   {
                     id: data.assistant_message_id,
                     role: "assistant" as const,
                     content: streamingTextRef.current,
                     created_at: new Date().toISOString(),
-                  },
+                  } as ChatMessageWithMeta,
                 ],
               };
             });
-
             if (data.new_title && activeSession) {
               setSessions((prev) =>
                 prev.map((s) =>
@@ -121,12 +134,14 @@ export function useChatStream({
                 prev ? { ...prev, title: data.new_title! } : prev,
               );
             }
-
             setStreamingText("");
             setLoading(false);
             abortControllerRef.current = null;
           },
+          // ── onError ──
           (error) => {
+            console.log("[handleSend] onError received:", error);
+
             setActiveSession((prev) =>
               prev
                 ? {
@@ -140,7 +155,6 @@ export function useChatStream({
             setStreamingText("");
             setLoading(false);
             abortControllerRef.current = null;
-
             showToast(
               error.toLowerCase().includes("api token")
                 ? "LLM API token not set. Please open Settings and enter your API token."
@@ -149,10 +163,11 @@ export function useChatStream({
             );
           },
           controller.signal,
-          attachedFiles,
-          mentionedIds,
+          filesToSend,
+          idsToSend,
         );
       } catch (err: unknown) {
+        console.log("[handleSend] catch:", err);
         if (err instanceof Error && err.name === "AbortError") {
           setStreamingText("");
           setLoading(false);
@@ -184,5 +199,11 @@ export function useChatStream({
     showToast("Stopped", "info");
   }, [showToast]);
 
-  return { loading, streamingText, lastSources, handleSend, handleStop };
+  return {
+    loading,
+    streamingText,
+    lastSources,
+    handleSend,
+    handleStop,
+  };
 }

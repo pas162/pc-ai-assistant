@@ -140,6 +140,7 @@ export default function ChatPanel({
       useRag,
       attachedFiles,
       mentionedDocs.map((d) => d.id),
+      mentionedDocs.map((d) => ({ id: d.id, filename: d.filename })),
       () => {
         setQuestion("");
         clearAttachedFiles();
@@ -147,12 +148,12 @@ export default function ChatPanel({
       },
     );
   }, [
-    handleSend,
     question,
     selectedModel,
     useRag,
     attachedFiles,
     mentionedDocs,
+    handleSend,
     clearAttachedFiles,
     clearMentions,
   ]);

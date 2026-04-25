@@ -196,6 +196,19 @@ export interface ChatSource {
   filename: string;
 }
 
+export interface AttachedFile {
+  filename: string;
+  content: string;
+}
+
+export interface StreamDoneData {
+  user_message_id: string;
+  assistant_message_id: string;
+  chunks_used: number;
+  sources: ChatSource[];
+  new_title: string | null;
+}
+
 // POST /chat/sessions — create a new session
 export const createChatSession = async (
   workspaceId: string,
@@ -242,34 +255,30 @@ export const updateChatSession = async (
 
 // POST /chat/sessions/:id/stream — stream a message response
 // Uses fetch (not axios) because axios doesn't support SSE streaming
-export const streamMessage = (
+export async function streamMessage(
   sessionId: string,
-  question: string,
+  content: string,
   model: string,
   useRag: boolean,
-  onChunk: (text: string) => void,
-  onDone: (data: {
-    user_message_id: string;
-    assistant_message_id: string;
-    chunks_used: number;
-    sources: ChatSource[];
-    new_title: string | null;
-  }) => void,
+  onChunk: (chunk: string) => void,
+  onDone: (data: StreamDoneData) => void,
   onError: (error: string) => void,
   signal?: AbortSignal,
-  attachedFiles?: { filename: string; content: string }[], // ADD
-  mentionedDocIds?: string[], // ADD
-): Promise<void> => {
+  attachedFiles?: AttachedFile[],
+  mentionedDocIds?: string[],
+): Promise<void> {
+  const body = {
+    content,
+    model,
+    use_rag: useRag,
+    attached_files: attachedFiles ?? [],
+    mentioned_doc_ids: mentionedDocIds ?? [],
+  };
+
   return fetch(`http://127.0.0.1:8000/chat/sessions/${sessionId}/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      model,
-      use_rag: useRag,
-      attached_files: attachedFiles ?? [], // ADD
-      mentioned_doc_ids: mentionedDocIds ?? [], // ADD
-    }),
+    body: JSON.stringify(body),
     signal,
   })
     .then((response) => {
@@ -335,7 +344,7 @@ export const streamMessage = (
       if (err.name === "AbortError" || signal?.aborted) return;
       throw err;
     });
-};
+}
 
 // POST /chat/sessions/:id/message — send a message
 export const sendMessage = async (

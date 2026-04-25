@@ -1,10 +1,11 @@
 import { memo, useRef, useEffect } from "react";
 import { Bot } from "lucide-react";
 import MessageBubble from "./MessageBubble";
-import type { ChatMessage, ChatSource } from "../../api";
+import type { ChatSource } from "../../api";
+import type { ChatMessageWithMeta } from "./types";
 
 interface MessageListProps {
-  messages: ChatMessage[];
+  messages: ChatMessageWithMeta[];
   streamingText: string;
   loading: boolean;
   lastSources: ChatSource[];
@@ -31,13 +32,13 @@ const MessageList = memo(function MessageList({
       ) : (
         messages.map((msg, index) => {
           const isLastAssistant =
-            msg.role === "assistant" &&
-            index === messages.length - 1;
+            msg.role === "assistant" && index === messages.length - 1;
           return (
             <MessageBubble
               key={msg.id}
               message={msg}
               sources={isLastAssistant ? lastSources : undefined}
+              mentionedDocs={msg.mentionedDocs}
             />
           );
         })

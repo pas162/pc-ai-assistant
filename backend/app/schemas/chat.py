@@ -1,78 +1,64 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
 
-# ─── Request Bodies ────────────────────────────────────────────────────────────
+# ─── Request schemas ──────────────────────────────────────────────────────────
 
 class CreateSessionRequest(BaseModel):
-    """
-    Body for creating a new chat session.
-    """
     workspace_id: str
-    title: str = "New Chat"  # optional — defaults to "New Chat"
+    title: str = "New Chat"
+
+
+class AttachedFileRequest(BaseModel):
+    filename: str
+    content: str
 
 
 class SendMessageRequest(BaseModel):
-    """
-    Body for sending a message in an existing session.
-    """
-    question: str
-    model: str = "databricks-claude-sonnet-4-6"
-    use_rag: bool = True  # True = search docs, False = pure LLM
+    content: str
+    model: str
+    use_rag: bool = True
+    attached_files: list[AttachedFileRequest] = []
+    mentioned_doc_ids: list[str] = []
 
 
 class UpdateSessionRequest(BaseModel):
-    """
-    Body for renaming a chat session.
-    """
     title: str
 
 
-# ─── Response Bodies ───────────────────────────────────────────────────────────
+# ─── Response schemas ─────────────────────────────────────────────────────────
 
 class ChatMessageResponse(BaseModel):
-    """
-    Represents one message returned in API responses.
-    """
     id: str
-    role: str           # "user" or "assistant"
+    session_id: str
+    role: str
     content: str
     created_at: datetime
 
-    class Config:
-        from_attributes = True  # allows building from SQLAlchemy model directly
+    model_config = {"from_attributes": True}
+
+
 class ChatSessionResponse(BaseModel):
-    """
-    Represents a session (without messages) — used in list view.
-    """
     id: str
     workspace_id: str
     title: str
     created_at: datetime
-    class Config:
-        from_attributes = True
+
+    model_config = {"from_attributes": True}
 
 
 class ChatSessionDetailResponse(BaseModel):
-    """
-    Represents a session WITH its full message history.
-    Used when fetching a single session.
-    """
     id: str
     workspace_id: str
     title: str
     created_at: datetime
-    messages: list[ChatMessageResponse]  # full history included
+    messages: list[ChatMessageResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class SendMessageResponse(BaseModel):
-    """
-    Returned after sending a message.
-    Contains both the saved user message and the AI answer.
-    """
     user_message: ChatMessageResponse
     assistant_message: ChatMessageResponse
     chunks_used: int

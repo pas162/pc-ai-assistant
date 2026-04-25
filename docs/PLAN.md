@@ -185,3 +185,12 @@ An internal AI platform with:
 - [x] useMention hook — @ mention state, dropdown, commit logic
 - [x] ChatPanel.tsx reduced to ~180 lines (pure composition)
 - [x] Fixed React 19 RefObject<T | null> type compatibility in useMention + SessionsSidebar
+- [x] @ mention sends mentioned_doc_ids to backend on every message
+- [x] Attached files content sent to backend as attached_files on every message
+- [x] Backend retrieves chunks filtered by mentioned doc (ChromaDB where filter)
+- [x] Mentioned doc context injected into LLM system prompt separately
+- [x] Attached file content injected into LLM system prompt
+- [x] Mentioned doc pills shown on sent user message bubble
+- [x] ChatMessageWithMeta type extends ChatMessage with mentionedDocs field
+- [x] SendMessageRequest schema updated with attached_files + mentioned_doc_ids
+- [x] retriever.py supports filter_doc_id via ChromaDB where filter
