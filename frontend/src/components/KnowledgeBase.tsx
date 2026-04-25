@@ -4,11 +4,18 @@ import {
   uploadDocument,
   deleteDocument,
   createFolder,
-  deleteFolder, // ← new API calls
+  deleteFolder,
 } from "../api";
 import type { Document, Folder } from "../api";
 import type { ToastType } from "../hooks/useToast";
-import { Upload, FolderPlus } from "lucide-react";
+import {
+  Upload,
+  FolderPlus,
+  Database,
+  FileText,
+  FolderOpen,
+  ChevronDown,
+} from "lucide-react";
 import FolderTree from "./FolderTree";
 
 interface KnowledgeBaseProps {
@@ -21,9 +28,25 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rootFileInputRef = useRef<HTMLInputElement>(null);
   const rootFolderInputRef = useRef<HTMLInputElement>(null);
+  const uploadMenuRef = useRef<HTMLDivElement>(null);
+
+  // ── Close upload menu when clicking outside ───────────────────────────────
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        uploadMenuRef.current &&
+        !uploadMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowUploadMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -271,48 +294,109 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 w-full max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-8 w-full max-w-5xl mx-auto">
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-100">Knowledge Base</h2>
-          <p className="text-gray-400 text-sm mt-1">
+          <div className="flex items-center gap-2 mb-1">
+            <Database size={20} className="text-blue-400" />
+            <h2 className="text-xl font-bold text-gray-100">Knowledge Base</h2>
+          </div>
+          <p className="text-gray-500 text-sm">
             Supports PDF, DOCX, TXT, MD, XLSX, and code files.
           </p>
+
+          {/* Stats bar */}
+          {!loading && (
+            <div className="flex items-center gap-4 mt-2">
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <FileText size={12} className="text-gray-600" />
+                {documents.length} file{documents.length !== 1 ? "s" : ""}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <FolderOpen size={12} className="text-gray-600" />
+                {folders.length} folder{folders.length !== 1 ? "s" : ""}
+              </span>
+              {documents.some(
+                (d) => d.status === "pending" || d.status === "processing",
+              ) && (
+                <span className="flex items-center gap-1.5 text-xs text-blue-400 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                  Processing...
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Root-level action buttons */}
+        {/* ── Action buttons ─────────────────────────────────────────────── */}
         <div className="flex items-center gap-2">
+          {/* New Folder */}
           <button
             onClick={() => handleCreateFolder(null)}
-            className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600
-                       text-white px-3 py-2 rounded transition-colors text-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md
+                       text-sm text-gray-400 hover:text-gray-100
+                       border border-gray-700 hover:border-gray-500
+                       hover:bg-gray-800 transition-all duration-150"
           >
             <FolderPlus size={14} />
             New Folder
           </button>
 
-          <button
-            onClick={() => rootFileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700
-                       text-white px-3 py-2 rounded transition-colors
-                       disabled:opacity-50 text-sm"
-          >
-            <Upload size={14} />
-            {uploading ? `Uploading ${uploadProgress}%` : "Upload Files"}
-          </button>
+          {/* Upload button with dropdown */}
+          <div className="relative" ref={uploadMenuRef}>
+            <button
+              disabled={uploading}
+              onClick={() => setShowUploadMenu((prev) => !prev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md
+                         text-sm text-white bg-blue-600 hover:bg-blue-500
+                         transition-colors disabled:opacity-50"
+            >
+              <Upload size={14} />
+              {uploading ? `Uploading ${uploadProgress}%` : "Upload"}
+              <ChevronDown
+                size={13}
+                className={`transition-transform duration-150 ${
+                  showUploadMenu ? "rotate-180" : ""
+                }`}
+              />
+            </button>
 
-          <button
-            onClick={() => rootFolderInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 bg-green-700 hover:bg-green-600
-                       text-white px-3 py-2 rounded transition-colors
-                       disabled:opacity-50 text-sm"
-          >
-            <Upload size={14} />
-            Upload Folder
-          </button>
+            {/* Dropdown menu */}
+            {showUploadMenu && (
+              <div
+                className="absolute right-0 top-full mt-1 w-44 z-50
+                              bg-gray-800 border border-gray-700 rounded-md
+                              shadow-xl overflow-hidden"
+              >
+                <button
+                  onClick={() => {
+                    setShowUploadMenu(false);
+                    rootFileInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm
+                             text-gray-300 hover:bg-gray-700 hover:text-white
+                             transition-colors"
+                >
+                  <Upload size={13} className="text-blue-400" />
+                  Upload Files
+                </button>
+                <div className="h-px bg-gray-700" />
+                <button
+                  onClick={() => {
+                    setShowUploadMenu(false);
+                    rootFolderInputRef.current?.click();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm
+                             text-gray-300 hover:bg-gray-700 hover:text-white
+                             transition-colors"
+                >
+                  <FolderOpen size={13} className="text-green-400" />
+                  Upload Folder
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -336,7 +420,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         }
       />
 
-      {/* Upload Progress Bar */}
+      {/* ── Upload Progress Bar ─────────────────────────────────────────────── */}
       {uploading && (
         <div className="mb-4">
           <div className="flex justify-between text-xs text-gray-400 mb-1">
@@ -352,14 +436,40 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         </div>
       )}
 
-      {/* Tree */}
-      <div
-        className="bg-gray-900 shadow rounded-lg overflow-hidden
-                      border border-gray-700"
-      >
+      {/* ── Tree ───────────────────────────────────────────────────────────── */}
+      <div className="bg-gray-900 shadow rounded-lg overflow-hidden border border-gray-700">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">
-            Loading knowledge base...
+          // ── Loading skeleton ──────────────────────────────────────────────
+          <div className="p-4 space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3 animate-pulse">
+                <div className="w-4 h-4 bg-gray-700 rounded" />
+                <div
+                  className="h-3 bg-gray-700 rounded"
+                  style={{ width: `${30 + i * 15}%` }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : documents.length === 0 && folders.length === 0 ? (
+          // ── Empty state ───────────────────────────────────────────────────
+          <div className="py-16 flex flex-col items-center gap-3 text-center">
+            <Database size={36} className="text-gray-700" />
+            <p className="text-gray-400 font-medium">
+              Your Knowledge Base is empty
+            </p>
+            <p className="text-gray-600 text-sm max-w-xs">
+              Upload files or folders to get started. Supported formats: PDF,
+              DOCX, TXT, MD, XLSX, and code files.
+            </p>
+            <button
+              onClick={() => rootFileInputRef.current?.click()}
+              className="mt-2 flex items-center gap-2 bg-blue-600 hover:bg-blue-700
+                         text-white px-4 py-2 rounded transition-colors text-sm"
+            >
+              <Upload size={14} />
+              Upload your first file
+            </button>
           </div>
         ) : (
           <FolderTree

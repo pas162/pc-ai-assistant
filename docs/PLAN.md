@@ -203,3 +203,15 @@ An internal AI platform with:
 - [x] ChatMessageWithMeta type extends ChatMessage with mentionedDocs and attachedFiles fields
 - [x] SendMessageRequest schema updated with attached_files + mentioned_doc_ids
 - [x] retriever.py supports filter_doc_id via ChromaDB where filter
+
+### UI & UX Improvements (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Fixed stale workspace data after reload — re-fetches fresh workspace from API on restore
+- [x] Fixed workspace deleted externally — clears localStorage if workspace no longer exists
+- [x] Knowledge Base header redesigned — Database icon, stats bar (file count, folder count)
+- [x] Knowledge Base loading skeleton — animated placeholder rows instead of plain text
+- [x] Knowledge Base empty state — helpful message with direct upload button
+- [x] Knowledge Base upload buttons replaced with single Upload dropdown button
+- [x] Upload dropdown uses React state (not CSS hover) with click-outside-to-close
+- [x] Chevron rotates 180° when upload dropdown is open
+- [x] Processing indicator in stats bar (pulsing blue dot when docs are processing)

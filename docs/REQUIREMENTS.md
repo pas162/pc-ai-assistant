@@ -145,6 +145,13 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Backend filters ChromaDB chunks by document id (filter_doc_id)
 - [x] SendMessageRequest schema includes attached_files + mentioned_doc_ids
 - [x] ChatPanel split into modules: ChatPanel.tsx, MessageBubble.tsx, CodeBlock.tsx, ModelSelector.tsx, MentionDropdown.tsx, types.ts
+- [x] Restore last selected workspace on page reload (localStorage)
+- [x] Re-fetch workspace from API on reload to prevent stale documents list
+- [x] Handle deleted workspace on reload — clears localStorage gracefully
+- [x] Knowledge Base stats bar (file count, folder count, processing indicator)
+- [x] Knowledge Base loading skeleton animation
+- [x] Knowledge Base empty state with direct upload CTA
+- [x] Knowledge Base single Upload dropdown button (files + folder in one menu)
 
 ## In Progress
 

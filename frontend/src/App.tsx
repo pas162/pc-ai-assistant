@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 import type { Workspace } from "./api";
+import { getWorkspaces } from "./api";
 
 function App() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(
@@ -26,6 +27,36 @@ function App() {
       }
     },
   );
+
+  // ── Re-fetch workspace on reload to get fresh documents list ─────────────
+  useEffect(() => {
+    const saved = localStorage.getItem("selectedWorkspace");
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as Workspace;
+
+      getWorkspaces()
+        .then((workspaces) => {
+          const fresh = workspaces.find((w) => w.id === parsed.id);
+          if (fresh) {
+            setSelectedWorkspace(fresh);
+          } else {
+            // Workspace was deleted — clear localStorage
+            localStorage.removeItem("selectedWorkspace");
+            setSelectedWorkspace(null);
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem("selectedWorkspace");
+        });
+    } catch {
+      // JSON.parse failed — just clean up localStorage silently
+      localStorage.removeItem("selectedWorkspace");
+      // No setState here — initial useState already defaults to null
+    }
+  }, []);
+
   const { toasts, showToast, removeToast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
