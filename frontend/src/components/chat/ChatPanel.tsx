@@ -1,33 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import type { ImperativePanelHandle } from "react-resizable-panels";
 import { fetchAvailableModels } from "../../api";
 import type { Document, Folder } from "../../api";
 import type { ToastType } from "../../hooks/useToast";
-import {
-  Bot,
-  Send,
-  ChevronRight,
-  Database,
-  Paperclip,
-  X,
-  StopCircle,
-  Folder as FolderIcon,
-  FileText,
-} from "lucide-react";
-import MessageBubble from "./MessageBubble";
-import ModelSelector from "./ModelSelector";
-import MentionDropdown from "./MentionDropdown";
+import { ChevronRight } from "lucide-react";
 import SessionsSidebar from "./SessionsSidebar";
 import { useChatSessions } from "./useChatSessions";
 import { useChatStream } from "./useChatStream";
 import { useFileAttach } from "./useFileAttach";
 import { useMention } from "./useMention";
-import {
-  DEFAULT_MODEL,
-  collectDocsUnderFolder,
-  ALLOWED_ATTACH_EXTENSIONS,
-} from "./types";
+import { DEFAULT_MODEL } from "./types";
+import MessageList from "./MessageList";
+import ChatInput from "./ChatInput";
 
 interface ChatPanelProps {
   workspaceId: string;
@@ -56,7 +41,6 @@ export default function ChatPanel({
   const [useRag, setUseRag] = useState(true);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const sessionsPanelRef = useRef<ImperativePanelHandle>(null);
 
   // ── Hooks ─────────────────────────────────────────────────────────────────
@@ -102,6 +86,8 @@ export default function ChatPanel({
     mentionIndex,
     mentionDropdownRef,
     mentionItems,
+    mentionMode,
+    selectMode,
     setMentionSearch,
     setMentionIndex,
     selectFile,
@@ -140,19 +126,14 @@ export default function ChatPanel({
     };
   }, []);
 
-  // ── Scroll to bottom ──────────────────────────────────────────────────────
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeSession?.messages, streamingText]);
-
   // ── Panel collapse sync ───────────────────────────────────────────────────
   useEffect(() => {
     if (sessionsOpen) sessionsPanelRef.current?.expand();
     else sessionsPanelRef.current?.collapse();
   }, [sessionsOpen]);
 
-  // ── Send wrapper ──────────────────────────────────────────────────────────
-  const onSend = () => {
+  // ── Memoize onSend to avoid re-renders ────────────────────────────────────
+  const onSend = useCallback(() => {
     handleSend(
       question,
       selectedModel,
@@ -165,11 +146,52 @@ export default function ChatPanel({
         clearMentions();
       },
     );
-  };
+  }, [
+    handleSend,
+    question,
+    selectedModel,
+    useRag,
+    attachedFiles,
+    mentionedDocs,
+    clearAttachedFiles,
+    clearMentions,
+  ]);
+
+  const onToggleRag = useCallback(() => setUseRag((r) => !r), []);
+  const onModelChange = useCallback((m: string) => setSelectedModel(m), []);
+
+  // ── Textarea change — keep stable, only question state changes ────────────
+  const onQuestionChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+      handleTextareaChange(e, setQuestion),
+    [handleTextareaChange],
+  );
 
   // ── Keyboard nav ──────────────────────────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionOpen) {
+      // ── Mode picker is showing (no mode selected, no search) ──
+      if (mentionMode === "all" && mentionSearch === "") {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          // Toggle between 0 (Files) and 1 (Folders)
+          setMentionIndex((i) => (i === 0 ? 1 : 0));
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          selectMode(mentionIndex === 0 ? "files" : "folders");
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeMention();
+          return;
+        }
+        return;
+      }
+
+      // ── Normal item navigation (mode selected or typing) ──
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setMentionIndex((i) => (i + 1) % Math.max(mentionItems.length, 1));
@@ -267,223 +289,50 @@ export default function ChatPanel({
             </div>
           ) : (
             <>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 custom-scrollbar">
-                {activeSession.messages.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
-                    Ask a question about your documents
-                  </div>
-                ) : (
-                  activeSession.messages.map((msg, index) => {
-                    const isLastAssistant =
-                      msg.role === "assistant" &&
-                      index === activeSession.messages.length - 1;
-                    return (
-                      <MessageBubble
-                        key={msg.id}
-                        message={msg}
-                        sources={isLastAssistant ? lastSources : undefined}
-                      />
-                    );
-                  })
-                )}
-                {streamingText && (
-                  <MessageBubble
-                    message={{
-                      id: "streaming",
-                      role: "assistant",
-                      content: streamingText,
-                      created_at: new Date().toISOString(),
-                    }}
-                  />
-                )}
-                {loading && !streamingText && (
-                  <div className="flex gap-2 items-center text-gray-500 text-sm">
-                    <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
-                      <Bot size={14} className="text-green-300" />
-                    </div>
-                    <span className="animate-pulse">Thinking...</span>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input area */}
-              <div className="border-t border-gray-700 p-3">
-                <div
-                  className="flex flex-col bg-gray-800 border border-gray-600
-                                rounded-xl focus-within:border-blue-500 transition-colors relative"
-                >
-                  {/* Pills */}
-                  {(attachedFiles.length > 0 ||
-                    mentionedFolders.length > 0 ||
-                    mentionedDocs.length > 0) && (
-                    <div className="flex flex-wrap gap-1.5 px-3 pt-2">
-                      {attachedFiles.map((f) => (
-                        <span
-                          key={f.filename}
-                          className="flex items-center gap-1 bg-gray-700 text-gray-200
-                                     text-xs px-2 py-0.5 rounded-full shrink-0"
-                        >
-                          <Paperclip size={10} className="text-gray-400" />
-                          {f.filename}
-                          <button
-                            onClick={() => removeAttachedFile(f.filename)}
-                            className="ml-0.5 text-gray-400 hover:text-red-400 transition-colors"
-                          >
-                            <X size={10} />
-                          </button>
-                        </span>
-                      ))}
-                      {mentionedFolders.map((node) => (
-                        <span
-                          key={node.id}
-                          className="flex items-center gap-1 bg-blue-600 text-white
-                                     text-xs px-2 py-0.5 rounded-md shrink-0"
-                        >
-                          <FolderIcon size={10} className="text-blue-200" />@
-                          {node.name}
-                          <button
-                            onClick={() => removeMentionedFolder(node.id)}
-                            className="ml-0.5 text-blue-200 hover:text-red-300 transition-colors"
-                          >
-                            <X size={10} />
-                          </button>
-                        </span>
-                      ))}
-                      {mentionedDocs
-                        .filter(
-                          (doc) =>
-                            !mentionedFolders.some((folder) =>
-                              collectDocsUnderFolder(folder).some(
-                                (d) => d.id === doc.id,
-                              ),
-                            ),
-                        )
-                        .map((doc) => (
-                          <span
-                            key={doc.id}
-                            className="flex items-center gap-1 bg-blue-600 text-white
-                                       text-xs px-2 py-0.5 rounded-md shrink-0"
-                          >
-                            <FileText size={10} className="text-blue-200" />@
-                            {doc.filename.length > 20
-                              ? doc.filename.slice(0, 20) + "…"
-                              : doc.filename}
-                            <button
-                              onClick={() => removeMentionedDoc(doc.id)}
-                              className="ml-0.5 text-blue-200 hover:text-red-300 transition-colors"
-                            >
-                              <X size={10} />
-                            </button>
-                          </span>
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Textarea */}
-                  <textarea
-                    ref={textareaRef}
-                    value={question}
-                    onChange={(e) => handleTextareaChange(e, setQuestion)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask a question... (type @ to mention a document)"
-                    rows={1}
-                    disabled={loading}
-                    className="flex-1 resize-none bg-transparent border-none
-                               px-3 pt-2.5 pb-1 text-sm text-gray-200
-                               placeholder-gray-500 focus:outline-none
-                               disabled:opacity-50 overflow-y-auto min-h-9 max-h-30"
-                    style={{ height: "36px" }}
-                  />
-
-                  {/* Mention dropdown */}
-                  {mentionOpen && (
-                    <MentionDropdown
-                      dropdownRef={mentionDropdownRef}
-                      mentionItems={mentionItems}
-                      mentionIndex={mentionIndex}
-                      mentionSearch={mentionSearch}
-                      mentionedDocs={mentionedDocs}
-                      workspaceDocsCompletedCount={
-                        workspaceDocs.filter((d) => d.status === "completed")
-                          .length
-                      }
-                      onSearchChange={(val) => {
-                        setMentionSearch(val);
-                        setMentionIndex(0);
-                      }}
-                      onIndexChange={setMentionIndex}
-                      onSelectFile={selectFile}
-                      onSelectFolder={selectFolder}
-                      onClose={closeMention}
-                    />
-                  )}
-
-                  {/* Bottom toolbar */}
-                  <div className="flex items-center justify-between px-2 pb-2 pt-0 gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <ModelSelector
-                        models={availableModels}
-                        selected={selectedModel}
-                        loading={modelsLoading}
-                        onChange={setSelectedModel}
-                      />
-                      <span className="text-gray-700 text-xs">|</span>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        accept={ALLOWED_ATTACH_EXTENSIONS.join(",")}
-                        className="hidden"
-                        onChange={handleFileAttach}
-                      />
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        title="Attach files"
-                        className={`text-xs transition-colors shrink-0 ${attachedFiles.length > 0 ? "text-blue-400 hover:text-blue-300" : "text-gray-600 hover:text-gray-400"}`}
-                      >
-                        <Paperclip size={13} />
-                      </button>
-                      <span className="text-gray-700 text-xs">|</span>
-                      <button
-                        onClick={() => setUseRag(!useRag)}
-                        title={
-                          useRag
-                            ? "RAG enabled — click to disable"
-                            : "RAG disabled — click to enable"
-                        }
-                        className={`text-xs transition-colors shrink-0 ${useRag ? "text-blue-400 hover:text-blue-300" : "text-gray-600 hover:text-gray-400"}`}
-                      >
-                        <Database size={13} />
-                      </button>
-                    </div>
-                    {loading ? (
-                      <button
-                        onClick={handleStop}
-                        title="Stop generating"
-                        className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-300 transition-colors shrink-0"
-                      >
-                        <StopCircle size={15} />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={onSend}
-                        disabled={
-                          !question.trim() &&
-                          attachedFiles.length === 0 &&
-                          mentionedDocs.length === 0
-                        }
-                        title="Send message"
-                        className="w-6 h-6 flex items-center justify-center text-blue-400 hover:text-blue-300
-                                   disabled:text-gray-600 transition-colors shrink-0"
-                      >
-                        <Send size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <MessageList
+                messages={activeSession.messages}
+                streamingText={streamingText}
+                loading={loading}
+                lastSources={lastSources}
+              />
+              <ChatInput
+                question={question}
+                loading={loading}
+                useRag={useRag}
+                availableModels={availableModels}
+                selectedModel={selectedModel}
+                modelsLoading={modelsLoading}
+                attachedFiles={attachedFiles}
+                mentionedDocs={mentionedDocs}
+                mentionedFolders={mentionedFolders}
+                mentionOpen={mentionOpen}
+                mentionSearch={mentionSearch}
+                mentionIndex={mentionIndex}
+                mentionItems={mentionItems}
+                mentionMode={mentionMode}
+                onSelectMode={selectMode}
+                mentionDropdownRef={mentionDropdownRef}
+                textareaRef={textareaRef}
+                fileInputRef={fileInputRef}
+                workspaceDocsCompletedCount={
+                  workspaceDocs.filter((d) => d.status === "completed").length
+                }
+                onQuestionChange={onQuestionChange}
+                onKeyDown={handleKeyDown}
+                onSend={onSend}
+                onStop={handleStop}
+                onToggleRag={onToggleRag}
+                onModelChange={onModelChange}
+                onFileAttach={handleFileAttach}
+                onRemoveFile={removeAttachedFile}
+                onRemoveMentionedDoc={removeMentionedDoc}
+                onRemoveMentionedFolder={removeMentionedFolder}
+                onMentionSearchChange={setMentionSearch}
+                onMentionIndexChange={setMentionIndex}
+                onSelectFile={selectFile}
+                onSelectFolder={selectFolder}
+                onCloseMention={closeMention}
+              />
             </>
           )}
         </Panel>

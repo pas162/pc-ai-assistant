@@ -168,7 +168,11 @@ An internal AI platform with:
 - [x] File attach button (paperclip) — attach .py, .java, .xml, .txt, .json, .ts, .js, .md, .yaml, .sql, .sh files directly in chat input
 - [x] File content read client-side as plain text (max 500KB per file)
 - [x] Attached files sent to backend as attached_files: [{filename, content}]
-- [x] @ mention dropdown — type @ to search and mention workspace documents
+- [x] @ mention dropdown refactored — mode picker (Files/Folders) shown first on @
+- [x] Mention search driven by textarea input — no separate search box
+- [x] Keyboard navigation for mode picker (↑↓ to highlight, Enter to select)
+- [x] Mode indicator pill shown after mode selected (with clear button)
+- [x] Typing after @ without selecting mode searches all types
 - [x] @ mention supports both files and folders (selecting folder adds all its docs)
 - [x] Mention dropdown: single flat list, keyboard nav (↑↓ Enter Esc), live search filter
 - [x] Mentioned docs sent to backend as mentioned_doc_ids: [uuid, ...]

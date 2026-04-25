@@ -130,7 +130,11 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Model display strips "databricks-" prefix for readability
 - [x] Selected model highlighted with checkmark in dropdown
 - [x] File attach in chat input (paperclip button, plain text/code files, 500KB limit)
-- [x] @ mention in chat input (dropdown, search, keyboard nav, file + folder selection)
+- [x] @ mention dropdown — type @ to show Files/Folders mode picker
+- [x] Select mode (Files or Folders) to filter search, or type directly to search all
+- [x] Keyboard nav on mode picker (↑↓ highlight, Enter select, Esc close)
+- [x] Search driven by textarea typing — no separate search input in dropdown
+- [x] Mode indicator pill with clear button shown after mode is selected
 - [x] Mention pills inside chat input card (blue for mentions, gray for attachments)
 - [x] attached_files and mentioned_doc_ids sent to backend on every message
 - [x] ChatPanel split into modules: ChatPanel.tsx, MessageBubble.tsx, CodeBlock.tsx, ModelSelector.tsx, MentionDropdown.tsx, types.ts

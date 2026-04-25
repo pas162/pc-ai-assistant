@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { buildMentionTree, collectDocsUnderFolder } from "./types";
-import type { FolderNode, MentionItem } from "./types";
+import type { FolderNode, MentionItem, MentionMode } from "./types";
 import type { Document, Folder } from "../../api";
 
 interface UseMentionProps {
@@ -23,6 +23,7 @@ export function useMention({
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionMode, setMentionMode] = useState<MentionMode>("all");
 
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,45 +37,76 @@ export function useMention({
       ) {
         setMentionOpen(false);
         setMentionSearch("");
+        setMentionMode("all");
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [textareaRef]);
 
-  // Build mention items list
-  const { rootFolders: mentionFolders } = buildMentionTree(
-    workspaceFolders,
-    workspaceDocs,
+  // ── Memoize the folder tree — only rebuilds when workspace data changes ──
+  const { rootFolders: mentionFolders } = useMemo(
+    () => buildMentionTree(workspaceFolders, workspaceDocs),
+    [workspaceFolders, workspaceDocs],
   );
 
-  const mentionItems: MentionItem[] = [
-    ...workspaceDocs
-      .filter(
-        (d) =>
-          d.status === "completed" &&
-          !mentionedDocs.some((m) => m.id === d.id) &&
-          d.filename.toLowerCase().includes(mentionSearch.toLowerCase()),
-      )
-      .map((doc): MentionItem => ({ type: "file", doc })),
-    ...mentionFolders
-      .filter((node) => {
-        const available = collectDocsUnderFolder(node).filter(
-          (d) => !mentionedDocs.some((m) => m.id === d.id),
-        );
-        return (
-          available.length > 0 &&
-          node.name.toLowerCase().includes(mentionSearch.toLowerCase())
-        );
-      })
-      .map((node): MentionItem => ({ type: "folder", node })),
-  ];
+  // ── Mention items based on mode ───────────────────────────────────────────
+  const mentionItems = useMemo<MentionItem[]>(() => {
+    // If no search yet and no mode selected → show nothing (type picker handles it)
+    if (mentionMode === "all" && mentionSearch === "") return [];
 
+    const fileItems: MentionItem[] =
+      mentionMode !== "folders"
+        ? workspaceDocs
+            .filter(
+              (d) =>
+                d.status === "completed" &&
+                !mentionedDocs.some((m) => m.id === d.id) &&
+                d.filename.toLowerCase().includes(mentionSearch.toLowerCase()),
+            )
+            .map((doc): MentionItem => ({ type: "file", doc }))
+        : [];
+
+    const folderItems: MentionItem[] =
+      mentionMode !== "files"
+        ? mentionFolders
+            .filter((node) => {
+              const available = collectDocsUnderFolder(node).filter(
+                (d) => !mentionedDocs.some((m) => m.id === d.id),
+              );
+              return (
+                available.length > 0 &&
+                node.name.toLowerCase().includes(mentionSearch.toLowerCase())
+              );
+            })
+            .map((node): MentionItem => ({ type: "folder", node }))
+        : [];
+
+    return [...fileItems, ...folderItems];
+  }, [
+    workspaceDocs,
+    mentionFolders,
+    mentionedDocs,
+    mentionSearch,
+    mentionMode,
+  ]);
   const closeMention = useCallback(() => {
     setMentionOpen(false);
     setMentionSearch("");
     setMentionIndex(0);
+    setMentionMode("all");
   }, []);
+
+  // ── Select a mode (Files or Folders) ─────────────────────────────────────
+  const selectMode = useCallback(
+    (mode: MentionMode) => {
+      setMentionMode(mode);
+      setMentionSearch("");
+      setMentionIndex(0);
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    },
+    [textareaRef],
+  );
 
   const commitMention = useCallback(
     (doc?: Document, folder?: FolderNode) => {
@@ -172,6 +204,12 @@ export function useMention({
           if (!query.includes(" ")) {
             setMentionSearch(query);
             setMentionIndex(0);
+
+            // ── If user types after @ without picking a mode → switch to "all" ──
+            if (query.length > 0 && mentionMode === "all") {
+              setMentionMode("all");
+            }
+
             if (!mentionOpen) setMentionOpen(true);
             return;
           }
@@ -180,7 +218,7 @@ export function useMention({
 
       if (mentionOpen) closeMention();
     },
-    [mentionOpen, closeMention],
+    [mentionOpen, mentionMode, closeMention],
   );
 
   const clearMentions = useCallback(() => {
@@ -194,12 +232,14 @@ export function useMention({
     mentionOpen,
     mentionSearch,
     mentionIndex,
+    mentionMode,
     mentionDropdownRef,
     mentionItems,
     setMentionSearch,
     setMentionIndex,
     selectFile,
     selectFolder,
+    selectMode,
     removeMentionedDoc,
     removeMentionedFolder,
     closeMention,

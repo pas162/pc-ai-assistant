@@ -84,3 +84,5 @@ export function collectDocsUnderFolder(node: FolderNode): Document[] {
 export type MentionItem =
   | { type: "file"; doc: import("../../api").Document }
   | { type: "folder"; node: FolderNode };
+
+export type MentionMode = "all" | "files" | "folders";
