@@ -136,7 +136,11 @@ Workspaces, and chat with an AI about the attached documents.
 - [x] Search driven by textarea typing — no separate search input in dropdown
 - [x] Mode indicator pill with clear button shown after mode is selected
 - [x] Mention pills inside chat input card (blue for mentions, gray for attachments)
-- [x] attached_files and mentioned_doc_ids sent to backend on every message
+- [x] mentioned_doc_ids sent to backend and injected into LLM context
+- [x] attached_files sent to backend and injected into LLM context
+- [x] Mentioned doc pills displayed on sent user message bubble
+- [x] Backend filters ChromaDB chunks by document id (filter_doc_id)
+- [x] SendMessageRequest schema includes attached_files + mentioned_doc_ids
 - [x] ChatPanel split into modules: ChatPanel.tsx, MessageBubble.tsx, CodeBlock.tsx, ModelSelector.tsx, MentionDropdown.tsx, types.ts
 
 ## In Progress
