@@ -6,12 +6,22 @@ import os
 from typing import Callable, Optional
 
 _PLAIN_TEXT_TYPES = {
-    # Original plain text
-    "txt", "md", "csv",
-    # Code files — all are plain text, no special parsing needed
-    "py", "java", "js", "ts", "html", "css",
-    "json", "yaml", "yml", "xml", "mdf",
-    "sql", "sh", "bat", "cs", "cpp", "c", "h"
+    # Documents
+    "txt", "md", "csv", "rst", "adoc", "log",
+    # JVM / Java ecosystem
+    "java", "kt", "kts", "groovy", "scala",
+    "gradle", "properties", "prefs", "mf",
+    # Eclipse project files
+    "classpath", "project", "launch",
+    # Web / scripting
+    "py", "js", "ts", "tsx", "jsx",
+    "html", "css", "scss", "less",
+    "sh", "bat", "ps1",
+    # Config / data
+    "json", "yaml", "yml", "xml", "toml", "ini", "cfg",
+    "sql", "mdf",
+    # C family
+    "cs", "cpp", "c", "h", "hpp",
 }
 
 class ExtractionCancelled(Exception):
