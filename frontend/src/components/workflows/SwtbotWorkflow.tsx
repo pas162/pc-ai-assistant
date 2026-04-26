@@ -18,12 +18,19 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import {
   fetchJiraTicket,
+  fetchMockTicket,
   generateSwtbotScript,
   refineSwtbotScript,
   getJiraStatus,
   type JiraTicketData,
 } from "../../api";
 import { useToast } from "../../hooks/useToast";
+
+const SAMPLE_TICKETS = [
+  { id: "DEMO-1", label: "GPIO Toggle",     component: "GPIO" },
+  { id: "DEMO-2", label: "Project Wizard",  component: "Wizard" },
+  { id: "DEMO-3", label: "SCI UART Config", component: "UART" },
+];
 
 const PRIORITY_COLORS: Record<string, string> = {
   Highest: "text-red-400 bg-red-500/10 border-red-500/20",
@@ -70,6 +77,21 @@ export default function SwtbotWorkflow() {
       setRefineCount(0);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to fetch ticket", "error");
+    } finally {
+      setIsFetching(false);
+    }
+  }
+
+  async function handleLoadSample(id: string) {
+    setIsFetching(true);
+    setTicketId(id);
+    try {
+      const data = await fetchMockTicket(id);
+      setTicketData(data);
+      setGeneratedCode("");
+      setRefineCount(0);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to load sample", "error");
     } finally {
       setIsFetching(false);
     }
@@ -189,7 +211,7 @@ export default function SwtbotWorkflow() {
                                flex items-center justify-center font-bold">1</span>
               Fetch Jira Ticket
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={ticketId}
@@ -212,6 +234,27 @@ export default function SwtbotWorkflow() {
                   ? <Loader2 size={14} className="animate-spin" />
                   : <Search size={14} />}
               </button>
+            </div>
+
+            {/* Sample tickets */}
+            <div>
+              <p className="text-xs text-gray-600 mb-1.5">or load a sample:</p>
+              <div className="flex flex-col gap-1">
+                {SAMPLE_TICKETS.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleLoadSample(s.id)}
+                    disabled={isFetching}
+                    className="flex items-center justify-between px-2.5 py-1.5
+                               rounded-lg border border-gray-800 bg-gray-800/40
+                               hover:bg-gray-800 hover:border-gray-700
+                               text-left transition-colors disabled:opacity-40"
+                  >
+                    <span className="text-xs text-gray-300">{s.label}</span>
+                    <span className="text-xs font-mono text-gray-600">{s.id}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

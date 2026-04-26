@@ -432,6 +432,12 @@ export const fetchJiraTicket = async (ticketId: string): Promise<JiraTicketData>
   return response.data;
 };
 
+// GET /workflows/jira/mock/:id — fetch a local sample ticket (no Jira needed)
+export const fetchMockTicket = async (ticketId: string): Promise<JiraTicketData> => {
+  const response = await api.get(`/workflows/jira/mock/${ticketId}`);
+  return response.data;
+};
+
 // POST /workflows/swtbot/generate — generate SWTBot script
 export const generateSwtbotScript = async (
   request: GenerateScriptRequest,

@@ -98,6 +98,73 @@ def check_jira_status():
         )
 
 
+MOCK_TICKETS: dict[str, dict] = {
+    "DEMO-1": {
+        "key": "DEMO-1",
+        "name": "Verify GPIO pin output toggle via e² studio debug console",
+        "description": "Test that a GPIO pin can be toggled high/low via the debug console in e² studio and that the state is reflected in the Renesas Smart Configurator pin view.",
+        "precondition": "Project 'GPIO_Toggle_Demo' is imported and built successfully. Target board is connected via J-Link.",
+        "priority": "High",
+        "component": "GPIO",
+        "steps": [
+            {"step": "1", "description": "Launch e² studio and open the 'GPIO_Toggle_Demo' project.", "expected": "Project opens without errors and the editor shows main.c."},
+            {"step": "2", "description": "Click Run > Debug As > Renesas GDB Hardware Debugging to start a debug session.", "expected": "Debug perspective opens and execution halts at main()."},
+            {"step": "3", "description": "In the Debug Console, type 'set gpio_pin_state 1' and press Enter.", "expected": "Console acknowledges the command and GPIO pin P1.00 goes HIGH."},
+            {"step": "4", "description": "Open the Smart Configurator pin view and inspect P1.00.", "expected": "Pin P1.00 shows output state HIGH in the pin view."},
+            {"step": "5", "description": "In the Debug Console, type 'set gpio_pin_state 0' and press Enter.", "expected": "GPIO pin P1.00 goes LOW and Smart Configurator reflects the change."},
+        ],
+    },
+    "DEMO-2": {
+        "key": "DEMO-2",
+        "name": "Verify project creation wizard generates correct linker script",
+        "description": "Ensure the new C project wizard in e² studio produces a valid linker script for the RA6M4 target device.",
+        "precondition": "e² studio 2024-04 or later is installed. FSP v5.3.0 pack is installed.",
+        "priority": "Medium",
+        "component": "Project Wizard",
+        "steps": [
+            {"step": "1", "description": "Open File > New > Renesas C/C++ Project.", "expected": "New project wizard dialog appears."},
+            {"step": "2", "description": "Select 'Renesas RA' family and click Next.", "expected": "Device selection page is shown."},
+            {"step": "3", "description": "Choose device 'R7FA6M4AF3CFB' (RA6M4) and click Next.", "expected": "Board selection page appears with compatible boards listed."},
+            {"step": "4", "description": "Select 'EK-RA6M4' board, choose 'Blinky' as the template, and click Finish.", "expected": "Project is created and visible in the Project Explorer."},
+            {"step": "5", "description": "Expand the project and open the generated linker script (.ld file).", "expected": "Linker script contains correct MEMORY regions for RA6M4 flash (1MB) and SRAM (256KB)."},
+        ],
+    },
+    "DEMO-3": {
+        "key": "DEMO-3",
+        "name": "Verify SCI UART configuration via Smart Configurator",
+        "description": "Test that configuring SCI channel 0 as UART in the Smart Configurator generates the correct HAL code and the serial output is visible on a terminal.",
+        "precondition": "Project 'UART_Demo' exists with FSP configured. USB-Serial adapter is connected to UART0 pins.",
+        "priority": "High",
+        "component": "SCI/UART",
+        "steps": [
+            {"step": "1", "description": "Open the 'UART_Demo' project and double-click configuration.xml.", "expected": "FSP Smart Configurator opens on the Stacks tab."},
+            {"step": "2", "description": "In the BSP tab, confirm the device is set to RA6M4.", "expected": "Device shows 'R7FA6M4AF3CFB'."},
+            {"step": "3", "description": "On the Stacks tab, add a new stack: r_sci_uart.", "expected": "UART stack appears in the stack view with default settings."},
+            {"step": "4", "description": "Configure Channel to 0, Baud Rate to 115200, Data Bits to 8, Parity to None, Stop Bits to 1.", "expected": "Settings are accepted without validation errors."},
+            {"step": "5", "description": "Click 'Generate Project Content' and then build the project.", "expected": "Build succeeds with 0 errors. Generated hal_data.c contains g_uart0 instance."},
+            {"step": "6", "description": "Flash and run the project. Open a serial terminal at 115200 baud.", "expected": "Terminal displays 'Hello from RA6M4 UART!' repeatedly at 1-second intervals."},
+        ],
+    },
+}
+
+
+@router.get("/jira/mock/{ticket_id}", response_model=JiraTicketResponse)
+def get_mock_ticket(ticket_id: str):
+    """
+    Returns a local sample ticket for testing without a real Jira connection.
+    Supports: DEMO-1, DEMO-2, DEMO-3
+    """
+    key = ticket_id.strip().upper()
+    ticket = MOCK_TICKETS.get(key)
+    if not ticket:
+        available = ", ".join(MOCK_TICKETS.keys())
+        raise HTTPException(
+            status_code=404,
+            detail=f"Mock ticket '{key}' not found. Available: {available}"
+        )
+    return JiraTicketResponse(**ticket)
+
+
 @router.post("/jira/fetch", response_model=JiraTicketResponse)
 def fetch_jira_ticket(request: JiraTicketRequest):
     """
