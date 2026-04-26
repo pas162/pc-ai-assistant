@@ -108,6 +108,13 @@ export function useChatStream({
           },
           // ── onDone ──
           (data: StreamDoneData) => {
+            // Cancel any pending throttled flush and get the complete text
+            if (flushTimerRef.current) {
+              clearTimeout(flushTimerRef.current);
+              flushTimerRef.current = null;
+            }
+            const finalContent = chunkBufferRef.current;
+
             setActiveSession((prev) => {
               if (!prev) return prev;
               const withoutTemp = prev.messages.filter(
@@ -122,13 +129,13 @@ export function useChatStream({
                     role: "user" as const,
                     content: questionText,
                     created_at: new Date().toISOString(),
-                    mentionedDocs: docsToShow, // Keep pills after stream finishes
-                    attachedFiles: filesToSend, // Keep pills after stream finishes
-                  } as unknown as ChatMessageWithMeta, // Bypass DOM Document collision
+                    mentionedDocs: docsToShow,
+                    attachedFiles: filesToSend,
+                  } as unknown as ChatMessageWithMeta,
                   {
                     id: data.assistant_message_id,
                     role: "assistant" as const,
-                    content: streamingTextRef.current,
+                    content: finalContent,
                     created_at: new Date().toISOString(),
                     sources: data.sources ?? [],
                   } as ChatMessageWithMeta,
@@ -148,6 +155,8 @@ export function useChatStream({
               );
             }
             setStreamingText("");
+            chunkBufferRef.current = "";
+            streamingTextRef.current = "";
             setLoading(false);
             abortControllerRef.current = null;
           },
