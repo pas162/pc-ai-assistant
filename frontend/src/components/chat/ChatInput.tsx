@@ -100,10 +100,11 @@ const ChatInput = memo(function ChatInput({
     !!question.trim() || attachedFiles.length > 0 || mentionedDocs.length > 0;
 
   return (
-    <div className="border-t border-gray-700 p-3">
+    <div className="border-t border-gray-800 px-4 py-3 bg-gray-950">
+      <div className="max-w-3xl mx-auto">
       <div
-        className="flex flex-col bg-gray-800 border border-gray-600
-                      rounded-xl focus-within:border-blue-500 transition-colors relative"
+        className="flex flex-col bg-gray-900 border border-gray-700/80
+                      rounded-2xl focus-within:border-gray-600 transition-colors relative"
       >
         {/* Pills */}
         {hasPills && (
@@ -202,15 +203,15 @@ const ChatInput = memo(function ChatInput({
         )}
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-2 pb-2 pt-0 gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+        <div className="flex items-center justify-between px-3 pb-2.5 pt-1 gap-2">
+          <div className="flex items-center gap-0.5 min-w-0">
             <ModelSelector
               models={availableModels}
               selected={selectedModel}
               loading={modelsLoading}
               onChange={onModelChange}
             />
-            <span className="text-gray-700 text-xs">|</span>
+            <div className="w-px h-3.5 bg-gray-700 mx-1.5 shrink-0" />
             <input
               ref={fileInputRef}
               type="file"
@@ -222,15 +223,14 @@ const ChatInput = memo(function ChatInput({
             <button
               onClick={() => fileInputRef.current?.click()}
               title="Attach files"
-              className={`text-xs transition-colors shrink-0 ${
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                 attachedFiles.length > 0
-                  ? "text-blue-400 hover:text-blue-300"
-                  : "text-gray-600 hover:text-gray-400"
+                  ? "text-blue-400 hover:bg-blue-500/10"
+                  : "text-gray-600 hover:text-gray-400 hover:bg-gray-800"
               }`}
             >
               <Paperclip size={13} />
             </button>
-            <span className="text-gray-700 text-xs">|</span>
             <button
               onClick={onToggleRag}
               title={
@@ -238,41 +238,46 @@ const ChatInput = memo(function ChatInput({
                   ? "RAG enabled — click to disable"
                   : "RAG disabled — click to enable"
               }
-              className={`text-xs transition-colors shrink-0 ${
+              className={`p-1.5 rounded-lg transition-colors shrink-0 ${
                 useRag
-                  ? "text-blue-400 hover:text-blue-300"
-                  : "text-gray-600 hover:text-gray-400"
+                  ? "text-blue-400 hover:bg-blue-500/10"
+                  : "text-gray-600 hover:text-gray-400 hover:bg-gray-800"
               }`}
             >
               <Database size={13} />
             </button>
           </div>
-          {question.length > 0 && (
-            <span className="text-xs text-gray-600 shrink-0">
-              {question.length}
-            </span>
-          )}
-          {loading ? (
-            <button
-              onClick={onStop}
-              title="Stop generating"
-              className="w-6 h-6 flex items-center justify-center
-                         text-red-400 hover:text-red-300 transition-colors shrink-0"
-            >
-              <StopCircle size={15} />
-            </button>
-          ) : (
-            <button
-              onClick={onSend}
-              disabled={!canSend}
-              title="Send message"
-              className="w-6 h-6 flex items-center justify-center text-blue-400
-                         hover:text-blue-300 disabled:text-gray-600 transition-colors shrink-0"
-            >
-              <Send size={14} />
-            </button>
-          )}
+
+          {/* Right side: char count + send/stop */}
+          <div className="flex items-center gap-2 shrink-0">
+            {question.length > 80 && (
+              <span className="text-xs text-gray-600">{question.length}</span>
+            )}
+            {loading ? (
+              <button
+                onClick={onStop}
+                title="Stop generating"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg
+                           bg-red-500/10 text-red-400 hover:bg-red-500/20
+                           text-xs font-medium transition-colors"
+              >
+                <StopCircle size={13} /> Stop
+              </button>
+            ) : (
+              <button
+                onClick={onSend}
+                disabled={!canSend}
+                title="Send message"
+                className="flex items-center justify-center w-7 h-7 rounded-lg
+                           bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800
+                           disabled:text-gray-600 text-white transition-colors"
+              >
+                <Send size={13} />
+              </button>
+            )}
+          </div>
         </div>
+      </div>
       </div>
     </div>
   );
