@@ -96,29 +96,34 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
       setUploadProgress(0);
       let successCount = 0;
 
+      let skipCount = 0;
       try {
         for (let i = 0; i < files.length; i++) {
-          await uploadDocument(
-            files[i],
-            (percent) => {
-              // Overall progress across all files
-              const overall = Math.round(
-                ((i + percent / 100) / files.length) * 100,
-              );
-              setUploadProgress(overall);
-            },
-            folderPath ?? undefined,
-          );
-          successCount++;
+          try {
+            const result = await uploadDocument(
+              files[i],
+              (percent) => {
+                const overall = Math.round(
+                  ((i + percent / 100) / files.length) * 100,
+                );
+                setUploadProgress(overall);
+              },
+              folderPath ?? undefined,
+            );
+            if ((result as { status?: string }).status === "skipped") skipCount++;
+            else successCount++;
+          } catch {
+            skipCount++;
+          }
         }
         await fetchAll();
-        showToast(
-          `${successCount} file(s) uploaded! Processing in background...`,
-          "info",
-        );
+        const msg = skipCount > 0
+          ? `${successCount} file(s) uploaded, ${skipCount} skipped (unsupported type). Processing in background...`
+          : `${successCount} file(s) uploaded! Processing in background...`;
+        showToast(msg, "info");
         startPolling();
       } catch {
-        showToast("Failed to upload one or more files", "error");
+        showToast("Failed to upload files", "error");
       } finally {
         setUploading(false);
         setUploadProgress(0);
@@ -175,25 +180,33 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
           }
         }
 
+        let uploaded = 0;
+        let skipped = 0;
         for (let i = 0; i < fileEntries.length; i++) {
           const { file, folderPath } = fileEntries[i];
-          await uploadDocument(
-            file,
-            (percent) => {
-              const overall = Math.round(
-                ((i + percent / 100) / fileEntries.length) * 100,
-              );
-              setUploadProgress(overall);
-            },
-            folderPath,
-          );
+          try {
+            const result = await uploadDocument(
+              file,
+              (percent) => {
+                const overall = Math.round(
+                  ((i + percent / 100) / fileEntries.length) * 100,
+                );
+                setUploadProgress(overall);
+              },
+              folderPath,
+            );
+            if ((result as { status?: string }).status === "skipped") skipped++;
+            else uploaded++;
+          } catch {
+            skipped++;
+          }
         }
 
         await fetchAll();
-        showToast(
-          `Folder uploaded! ${fileEntries.length} files processing...`,
-          "info",
-        );
+        const msg = skipped > 0
+          ? `Folder uploaded! ${uploaded} files processing, ${skipped} skipped.`
+          : `Folder uploaded! ${uploaded} files processing...`;
+        showToast(msg, "info");
         startPolling();
       } catch {
         showToast("Failed to upload folder", "error");

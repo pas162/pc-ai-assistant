@@ -13,7 +13,7 @@ class DocumentResponse(BaseModel):
     file_size: int | None = None
     status: str
     progress: int = 0
-    created_at: datetime
+    created_at: Optional[datetime] = None
     folder_path: str | None = None
 
     class Config:

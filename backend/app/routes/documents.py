@@ -11,12 +11,24 @@ from app.services.document_processor import process_document
 router = APIRouter(prefix="/documents", tags=["documents"])
 UPLOAD_DIR = "uploaded_docs"
 ALLOWED_EXTENSIONS = {
-    # Documents (existing)
+    # Documents
     "pdf", "txt", "md", "csv", "docx", "xlsx",
-    # Code files (new)
-    "py", "java", "js", "ts", "html", "css",
-    "json", "yaml", "yml", "xml", "mdf",
-    "sql", "sh", "bat", "cs", "cpp", "c", "h"
+    # JVM / Java ecosystem
+    "java", "kt", "kts", "groovy", "scala",
+    "gradle", "properties", "prefs", "mf",
+    # Eclipse project files
+    "classpath", "project", "launch",
+    # Web / scripting
+    "py", "js", "ts", "tsx", "jsx",
+    "html", "css", "scss", "less",
+    "sh", "bat", "ps1",
+    # Config / data
+    "json", "yaml", "yml", "xml", "toml", "ini", "cfg",
+    "sql", "mdf",
+    # C family
+    "cs", "cpp", "c", "h", "hpp",
+    # Misc text
+    "log", "rst", "adoc",
 }
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -39,12 +51,19 @@ async def upload_document(
     # We only want "Main.java" as the stored filename.
     # The folder information is already captured in folder_path separately.
     clean_filename = os.path.basename(file.filename.replace("\\", "/"))
-    # 0. Validate file type
-    file_type = clean_filename.split(".")[-1].lower() if "." in clean_filename else "unknown"
+    # 0. Determine file type
+    file_type = clean_filename.rsplit(".", 1)[-1].lower() if "." in clean_filename else "unknown"
     if file_type not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type '.{file_type}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        from app.schemas.document import DocumentResponse as DR
+        return DR(
+            id="skipped",
+            filename=clean_filename,
+            file_type=file_type,
+            file_size=0,
+            status="skipped",
+            progress=0,
+            created_at=None,
+            folder_path=None,
         )
 
     # 0b. Validate folder_path exists if provided
