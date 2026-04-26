@@ -26,3 +26,4 @@ pdfplumber==0.11.4      # Table extraction from PDF files
 openpyxl==3.1.5         # Extract text from Excel files (.xlsx)
 
 sentence-transformers==5.3.0
+transformers>=4.35.0,<5.0.0
