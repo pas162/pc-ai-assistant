@@ -378,9 +378,9 @@ def stream_message(
             
             # ── Save model used for this session ──────────────────────
             if request.model:
-                session.model = request.model
-            
-            db.commit()
+                merged_session = db.merge(session)
+                merged_session.model = request.model
+                db.commit()
 
             # ── Auto-title on first message ───────────────────────────
             new_title = None
@@ -410,11 +410,14 @@ def stream_message(
                     generated_title = chat_with_llm(title_messages, model=request.model).strip()
                     if len(generated_title) > 60:
                         generated_title = generated_title[:60].strip()
-                    session.title = generated_title
+                    # Re-attach session to current db context
+                    merged_session = db.merge(session)
+                    merged_session.title = generated_title
                     db.commit()
                     new_title = generated_title
-                except Exception:
-                    pass  # Auto-title is non-critical
+                    print(f"  Auto-title saved: '{generated_title}'")
+                except Exception as e:
+                    print(f"  Auto-title failed: {e}")
 
             # ── Send done event ───────────────────────────────────────
             done_payload = json.dumps(
