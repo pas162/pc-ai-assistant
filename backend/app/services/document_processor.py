@@ -86,7 +86,7 @@ def process_document(document_id: str):
             raise ValueError("No text extracted")
 
         # 2. Chunk (33%)
-        chunk_dicts = chunk_document(text, document_id=document.id)
+        chunk_dicts = chunk_document(text, document_id=document.id, file_type=document.file_type)
         chunk_texts = [c["text"] for c in chunk_dicts]
         if not _update_progress(db, document_id, 33):
             _cleanup_files(document_id, filename)  # ← cancel during chunking

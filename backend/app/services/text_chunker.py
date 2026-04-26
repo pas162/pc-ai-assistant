@@ -1,4 +1,58 @@
-from typing import List
+import re
+from typing import List, Optional
+
+CODE_EXTENSIONS = {"java", "py", "ts", "tsx", "js", "jsx", "kt", "cs", "cpp", "c", "go"}
+
+BLOCK_BOUNDARY = re.compile(
+    r'(?m)^[ \t]*(?:'
+    r'(?:public|private|protected|static|final|abstract|override|async|'
+    r'synchronized|native|strictfp)\s+)*'
+    r'(?:class|interface|enum|record|'
+    r'def |fun |func |'
+    r'(?:void|int|long|double|float|boolean|String|[A-Z]\w*)\s+\w+\s*\()'
+)
+
+
+def chunk_code(text: str, document_id: str) -> List[dict]:
+    """
+    Split source code at class/method/function boundaries.
+    Each chunk is one logical unit (class declaration, method body, etc.).
+    Falls back to fixed-size chunking when no structure is detected.
+    """
+    boundaries = [m.start() for m in BLOCK_BOUNDARY.finditer(text)]
+
+    if len(boundaries) < 2:
+        return chunk_document_fixed(text, document_id)
+
+    raw_chunks = []
+    for i, start in enumerate(boundaries):
+        end = boundaries[i + 1] if i + 1 < len(boundaries) else len(text)
+        block = text[start:end].strip()
+        if block:
+            raw_chunks.append(block)
+
+    final: List[dict] = []
+    idx = 0
+    for block in raw_chunks:
+        if len(block) > 4000:
+            sub = chunk_text(block, chunk_size=2000, overlap=200)
+            for s in sub:
+                final.append({"text": s, "document_id": document_id, "chunk_index": idx})
+                idx += 1
+        else:
+            final.append({"text": block, "document_id": document_id, "chunk_index": idx})
+            idx += 1
+
+    return final
+
+
+def chunk_document_fixed(text: str, document_id: str) -> List[dict]:
+    """Fixed-size overlapping chunker for prose documents."""
+    chunks = chunk_text(text, chunk_size=1000, overlap=150)
+    return [
+        {"text": chunk, "document_id": document_id, "chunk_index": i}
+        for i, chunk in enumerate(chunks)
+    ]
 
 
 def chunk_text(
@@ -30,7 +84,6 @@ def chunk_text(
 
     # Step 1: Clean up the text
     # Remove excessive blank lines (more than 2 in a row)
-    import re
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = text.strip()
 
@@ -78,25 +131,15 @@ def chunk_text(
 def chunk_document(
     text: str,
     document_id: str,
-    chunk_size: int = 500,
-    overlap: int = 50
+    file_type: Optional[str] = None,
 ) -> List[dict]:
     """
-    Chunk a document's text and attach metadata to each chunk.
-    The metadata is what gets stored in ChromaDB alongside the vector.
-
-    Returns a list of dicts, each containing:
-        - text:        The chunk text
-        - document_id: Which document this came from
-        - chunk_index: Position of this chunk in the document (0, 1, 2...)
+    Route to the appropriate chunker based on file type.
+    Code files (.java, .py, .ts, etc.) use boundary-aware chunking.
+    All other files use fixed-size overlapping chunking.
     """
-    chunks = chunk_text(text, chunk_size, overlap)
-
-    return [
-        {
-            "text": chunk,
-            "document_id": document_id,
-            "chunk_index": index,
-        }
-        for index, chunk in enumerate(chunks)
-    ]
+    ext = (file_type or "").lower().lstrip(".")
+    if ext in CODE_EXTENSIONS:
+        print(f"  Using code-aware chunker for .{ext} file")
+        return chunk_code(text, document_id)
+    return chunk_document_fixed(text, document_id)
