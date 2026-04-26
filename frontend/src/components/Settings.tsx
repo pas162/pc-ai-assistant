@@ -47,6 +47,14 @@ const GROUPS: SettingGroup[] = [
         secret: true,
         default: "",
       },
+      {
+        key: "llm_model",
+        label: "Model",
+        description: "Model name to use for completions",
+        placeholder: "llama-3.3-70b-versatile",
+        secret: false,
+        default: "llama-3.3-70b-versatile",
+      },
     ],
   },
   {

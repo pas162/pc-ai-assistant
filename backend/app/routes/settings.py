@@ -7,7 +7,7 @@ from app.schemas.setting import SettingResponse, SettingUpsertRequest
 router = APIRouter()
 
 # Defines which keys are allowed — prevents arbitrary data being stored
-ALLOWED_KEYS = {"llm_api_token", "llm_api_base_url", "jira_api_token", "jira_base_url"}
+ALLOWED_KEYS = {"llm_api_token", "llm_api_base_url", "llm_model", "jira_api_token", "jira_base_url"}
 
 
 @router.get("", response_model=list[SettingResponse])

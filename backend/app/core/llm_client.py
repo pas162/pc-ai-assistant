@@ -5,120 +5,83 @@ from app.core.database import get_db_direct
 from app.models.setting import Setting
 
 
-def get_llm_config() -> tuple[str, str]:
+def get_llm_config() -> tuple[str, str, str]:
     """
-    Reads LLM base URL and token from the database.
+    Reads LLM base URL, token, and model from the database.
     These are managed via the Settings UI — not from .env.
     """
     db = get_db_direct()
     try:
         rows = db.query(Setting).filter(
-            Setting.key.in_(["llm_api_token", "llm_api_base_url"])
+            Setting.key.in_(["llm_api_token", "llm_api_base_url", "llm_model"])
         ).all()
         values = {row.key: row.value or "" for row in rows}
-        base_url = values.get("llm_api_base_url", "http://10.210.106.4:8080")
+        base_url = values.get("llm_api_base_url", "http://10.210.106.4:8080").rstrip("/")
         token = values.get("llm_api_token", "")
-        return base_url, token
+        model = values.get("llm_model", "llama-3.3-70b-versatile")
+        return base_url, token, model
     finally:
         db.close()
 
 
 def chat_with_llm(messages: list, model: str = None) -> str:
-    base_url, token = get_llm_config()
+    base_url, token, default_model = get_llm_config()
 
     if not token:
         raise ValueError("LLM API token is not configured. Please go to Settings and enter your API token.")
 
     request_body = {
-        "model": model or "databricks-claude-sonnet-4-6",
+        "model": model or default_model,
         "messages": messages
     }
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
-    # Try both OpenAI format (/chat/completions) and internal format (/api/chat/completions)
-    paths_to_try = ["/chat/completions", "/api/chat/completions"]
-    
+    url = f"{base_url}/chat/completions"
     with httpx.Client(timeout=60.0) as client:
-        last_error = None
-        for path in paths_to_try:
-            url = f"{base_url}{path}"
-            try:
-                response = client.post(
-                    url,
-                    json=request_body,
-                    headers=headers
-                )
-                response.raise_for_status()
-                data = response.json()
-                return data["choices"][0]["message"]["content"]
-            except httpx.HTTPStatusError as e:
-                last_error = e
-                if e.response.status_code == 404:
-                    continue  # Try next path
-                raise  # Re-raise if not 404
-        # If all paths failed, raise the last error
-        if last_error:
-            raise last_error
-        raise ValueError("Failed to connect to LLM API")
+        response = client.post(url, json=request_body, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
 
 
 def stream_chat_with_llm(
     messages: list,
     model: str = None
 ) -> Generator[str, None, None]:
-    base_url, token = get_llm_config()
+    base_url, token, default_model = get_llm_config()
 
     if not token:
         raise ValueError("LLM API token is not configured. Please go to Settings and enter your API token.")
 
     request_body = {
-        "model": model or "databricks-claude-sonnet-4-6",
+        "model": model or default_model,
         "messages": messages,
-        "stream": True
-        }
+        "stream": True,
+    }
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-        }
-    # Try both OpenAI format (/chat/completions) and internal format (/api/chat/completions)
-    paths_to_try = ["/chat/completions", "/api/chat/completions"]
-    
+        "Content-Type": "application/json",
+    }
+    url = f"{base_url}/chat/completions"
     with httpx.Client(timeout=60.0) as client:
-        last_error = None
-        for path in paths_to_try:
-            try:
-                with client.stream(
-                    "POST",
-                    f"{base_url}{path}",
-                    json=request_body,
-                    headers=headers
-                ) as response:
-                    response.raise_for_status()
-                    for line in response.iter_lines():
-                        if not line or not line.startswith("data: "):
-                            continue
-                        data = line[6:]
-                        if data == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(data)
-                            delta = chunk["choices"][0].get("delta", {})
-                            text = delta.get("content", "")
-                            if text:
-                                yield text
-                        except (json.JSONDecodeError, KeyError, IndexError):
-                            continue
-                    return  # Success, exit the function
-            except httpx.HTTPStatusError as e:
-                last_error = e
-                if e.response.status_code == 404:
-                    continue  # Try next path
-                raise  # Re-raise if not 404
-        # If all paths failed, raise the last error
-        if last_error:
-            raise last_error
+        with client.stream("POST", url, json=request_body, headers=headers) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                data = line[6:]
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                    delta = chunk["choices"][0].get("delta", {})
+                    text = delta.get("content", "")
+                    if text:
+                        yield text
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    continue
 
 
 def test_llm_connection() -> dict:
