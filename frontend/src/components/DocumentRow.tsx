@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, Trash2, X } from "lucide-react";
 import type { Document } from "../api";
 
 interface DocumentRowProps {
@@ -14,123 +14,105 @@ function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getStatusBadgeClass(status: string): string {
+function getStatusDot(status: string): { dot: string; label: string; text: string } {
   switch (status) {
-    case "completed":
-      return "bg-green-900 text-green-300";
-    case "processing":
-      return "bg-blue-900 text-blue-300";
-    case "failed":
-      return "bg-red-900 text-red-300";
-    default:
-      return "bg-yellow-900 text-yellow-300";
+    case "completed":  return { dot: "bg-green-500",  label: "completed", text: "text-green-400" };
+    case "processing": return { dot: "bg-blue-400 animate-pulse", label: "processing", text: "text-blue-400" };
+    case "failed":     return { dot: "bg-red-500",    label: "failed",    text: "text-red-400" };
+    default:           return { dot: "bg-yellow-500", label: "pending",   text: "text-yellow-400" };
   }
 }
 
-function getFileTypeColor(fileType: string | null): string {
+function getFileTypeBadge(fileType: string | null): { bg: string; text: string } {
   switch (fileType) {
-    case "pdf":
-      return "text-red-400";
-    case "docx":
-      return "text-blue-400";
-    case "xlsx":
-      return "text-green-400";
-    case "java":
-      return "text-orange-400";
-    case "py":
-      return "text-yellow-400";
+    case "pdf":  return { bg: "bg-red-500/15",    text: "text-red-400" };
+    case "docx": return { bg: "bg-blue-500/15",   text: "text-blue-400" };
+    case "xlsx": return { bg: "bg-green-500/15",  text: "text-green-400" };
+    case "java": return { bg: "bg-orange-500/15", text: "text-orange-400" };
+    case "py":   return { bg: "bg-yellow-500/15", text: "text-yellow-400" };
     case "ts":
-    case "js":
-      return "text-cyan-400";
-    case "xml":
-    case "mdf":
-      return "text-purple-400";
-    case "md":
-      return "text-gray-300";
-    default:
-      return "text-gray-500";
+    case "js":   return { bg: "bg-cyan-500/15",   text: "text-cyan-400" };
+    case "xml":  return { bg: "bg-purple-500/15", text: "text-purple-400" };
+    case "md":   return { bg: "bg-gray-500/15",   text: "text-gray-300" };
+    default:     return { bg: "bg-gray-700/50",   text: "text-gray-500" };
   }
 }
+
+function stripUuidPrefix(filename: string): string {
+  return filename.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/, "");
+}
+
 
 export default function DocumentRow({
   doc,
   depth,
   onDelete,
 }: DocumentRowProps) {
-  const indentPx = depth * 16 + 8;
+  const indentPx = depth * 16 + 12;
+  const displayName = stripUuidPrefix(doc.filename);
+  const { dot, label, text } = getStatusDot(doc.status);
+  const typeBadge = getFileTypeBadge(doc.file_type);
+  const isProcessing = doc.status === "pending" || doc.status === "processing";
 
   return (
     <div
-      className="flex items-center justify-between px-3 py-2
-                 hover:bg-gray-800 transition-colors group border-b
-                 border-gray-700/50 last:border-0"
+      className="flex items-center gap-3 px-3 py-2.5
+                 hover:bg-gray-800/60 transition-colors group
+                 border-b border-gray-800/60 last:border-0"
     >
-      {/* Left — filename (takes remaining space) */}
-      <div
-        className="flex items-center gap-2 min-w-0 flex-1"
-        style={{ paddingLeft: `${indentPx}px` }}
-      >
-        <FileText size={13} className="text-gray-500 shrink-0" />
-        <span className="text-sm text-gray-300 truncate" title={doc.filename}>
-          {doc.filename}
-        </span>
+      {/* File icon */}
+      <div style={{ paddingLeft: `${indentPx}px` }} className="shrink-0">
+        <FileText size={14} className="text-gray-600" />
       </div>
 
-      {/* Fixed-width columns — always aligned regardless of filename length */}
-      <div className="flex items-center shrink-0 ml-2">
-        {/* Type — fixed width, right-aligned text */}
-        <div className="w-12 text-right">
-          <span
-            className={`text-xs font-medium uppercase
-                           ${getFileTypeColor(doc.file_type)}`}
-          >
-            {doc.file_type ?? "?"}
-          </span>
-        </div>
+      {/* Filename — grows */}
+      <span className="flex-1 text-sm text-gray-300 truncate min-w-0" title={doc.filename}>
+        {displayName}
+      </span>
 
-        {/* Size — fixed width, right-aligned text */}
-        <div className="w-20 text-right">
-          <span className="text-xs text-gray-600">
-            {formatFileSize(doc.file_size)}
-          </span>
-        </div>
+      {/* Type badge */}
+      <span className={`shrink-0 text-xs font-semibold uppercase px-1.5 py-0.5
+                        rounded ${typeBadge.bg} ${typeBadge.text}`}>
+        {doc.file_type ?? "?"}
+      </span>
 
-        {/* Status — fixed width */}
-        <div className="w-28 flex justify-end">
-          {doc.status === "processing" ? (
-            <div className="flex items-center gap-2 w-full">
-              <div className="flex-1 bg-gray-700 rounded-full h-1.5">
-                <div
-                  className="bg-blue-500 h-1.5 rounded-full transition-all duration-500"
-                  style={{ width: `${doc.progress ?? 0}%` }}
-                />
-              </div>
-              <span className="text-xs text-gray-400 w-8 text-right shrink-0">
-                {doc.progress ?? 0}%
-              </span>
+      {/* Size */}
+      <span className="w-16 text-right text-xs text-gray-600 shrink-0">
+        {formatFileSize(doc.file_size)}
+      </span>
+
+      {/* Status */}
+      <div className="w-28 flex items-center justify-end shrink-0">
+        {doc.status === "processing" ? (
+          <div className="flex items-center gap-2 w-full">
+            <div className="flex-1 bg-gray-700 rounded-full h-1">
+              <div
+                className="bg-blue-500 h-1 rounded-full transition-all duration-500"
+                style={{ width: `${doc.progress ?? 0}%` }}
+              />
             </div>
-          ) : (
-            <span
-              className={`px-2 py-0.5 text-xs font-semibold rounded-full
-                             ${getStatusBadgeClass(doc.status)}`}
-            >
-              {doc.status}
+            <span className="text-xs text-blue-400 w-8 text-right shrink-0">
+              {doc.progress ?? 0}%
             </span>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
+            <span className={`text-xs ${text}`}>{label}</span>
+          </div>
+        )}
+      </div>
 
-        {/* Delete — fixed width */}
-        <div className="w-14 flex justify-end">
-          <button
-            onClick={() => onDelete(doc)}
-            className="text-red-400 hover:text-red-300 text-xs font-medium
-                       transition-colors opacity-0 group-hover:opacity-100"
-          >
-            {doc.status === "pending" || doc.status === "processing"
-              ? "Cancel"
-              : "Delete"}
-          </button>
-        </div>
+      {/* Delete button — appears on hover */}
+      <div className="w-8 flex justify-end shrink-0">
+        <button
+          onClick={() => onDelete(doc)}
+          title={isProcessing ? "Cancel processing" : "Delete file"}
+          className="text-gray-700 hover:text-red-400 transition-colors
+                     opacity-0 group-hover:opacity-100"
+        >
+          {isProcessing ? <X size={14} /> : <Trash2 size={14} />}
+        </button>
       </div>
     </div>
   );

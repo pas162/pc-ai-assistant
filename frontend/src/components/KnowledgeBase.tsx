@@ -274,37 +274,55 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
+  const totalSize = documents.reduce((sum, d) => sum + (d.file_size ?? 0), 0);
+  const formatTotalSize = (b: number) => {
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  const isProcessing = documents.some(
+    (d) => d.status === "pending" || d.status === "processing",
+  );
+
   return (
-    <div className="p-8 w-full max-w-5xl mx-auto">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-start mb-6">
+    <div className="h-full overflow-y-auto">
+      <div className="p-6 w-full max-w-5xl mx-auto">
+      {/* ── Header ────────────────────────────────────────────────────── */}
+      <div className="flex justify-between items-start mb-5">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Database size={20} className="text-blue-400" />
-            <h2 className="text-xl font-bold text-gray-100">Knowledge Base</h2>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Database size={18} className="text-blue-400" />
+            <h2 className="text-base font-semibold text-gray-100">Knowledge Base</h2>
           </div>
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-600 text-xs">
             Supports PDF, DOCX, TXT, MD, XLSX, and code files.
           </p>
 
           {/* Stats bar */}
           {!loading && (
-            <div className="flex items-center gap-4 mt-2">
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                <FileText size={12} className="text-gray-600" />
-                {documents.length} file{documents.length !== 1 ? "s" : ""}
+            <div className="flex items-center gap-3 mt-2">
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <FileText size={11} className="text-gray-600" />
+                {documents.length} {documents.length === 1 ? "file" : "files"}
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                <FolderOpen size={12} className="text-gray-600" />
-                {folders.length} folder{folders.length !== 1 ? "s" : ""}
+              <span className="text-gray-700">·</span>
+              <span className="flex items-center gap-1 text-xs text-gray-500">
+                <FolderOpen size={11} className="text-gray-600" />
+                {folders.length} {folders.length === 1 ? "folder" : "folders"}
               </span>
-              {documents.some(
-                (d) => d.status === "pending" || d.status === "processing",
-              ) && (
-                <span className="flex items-center gap-1.5 text-xs text-blue-400 animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
-                  Processing...
-                </span>
+              {totalSize > 0 && (
+                <>
+                  <span className="text-gray-700">·</span>
+                  <span className="text-xs text-gray-500">{formatTotalSize(totalSize)}</span>
+                </>
+              )}
+              {isProcessing && (
+                <>
+                  <span className="text-gray-700">·</span>
+                  <span className="flex items-center gap-1 text-xs text-blue-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse inline-block" />
+                    Processing
+                  </span>
+                </>
               )}
             </div>
           )}
@@ -417,38 +435,60 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         </div>
       )}
 
-      {/* ── Tree ───────────────────────────────────────────────────────────── */}
-      <div className="bg-gray-900 shadow rounded-lg overflow-hidden border border-gray-700">
+      {/* ── Tree container ──────────────────────────────────────────────────────────── */}
+      <div className="rounded-xl border border-gray-800 overflow-hidden bg-gray-900">
+
+        {/* Column header row */}
+        {!loading && (documents.length > 0 || folders.length > 0) && (
+          <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800
+                          bg-gray-900/80">
+            <div className="w-5 shrink-0" />
+            <span className="flex-1 text-xs text-gray-600 font-medium uppercase tracking-wider">
+              Name
+            </span>
+            <span className="text-xs text-gray-600 font-medium uppercase tracking-wider shrink-0">
+              Type
+            </span>
+            <span className="w-16 text-right text-xs text-gray-600 font-medium uppercase tracking-wider shrink-0">
+              Size
+            </span>
+            <span className="w-28 text-right text-xs text-gray-600 font-medium uppercase tracking-wider shrink-0">
+              Status
+            </span>
+            <div className="w-8 shrink-0" />
+          </div>
+        )}
+
         {loading ? (
           // ── Loading skeleton ──────────────────────────────────────────────
-          <div className="p-4 space-y-3">
+          <div className="p-6 space-y-3">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 animate-pulse">
-                <div className="w-4 h-4 bg-gray-700 rounded" />
-                <div
-                  className="h-3 bg-gray-700 rounded"
-                  style={{ width: `${30 + i * 15}%` }}
-                />
+                <div className="w-4 h-4 bg-gray-800 rounded" />
+                <div className="h-2.5 bg-gray-800 rounded" style={{ width: `${25 + i * 12}%` }} />
+                <div className="ml-auto h-2.5 bg-gray-800 rounded w-12" />
               </div>
             ))}
           </div>
         ) : documents.length === 0 && folders.length === 0 ? (
           // ── Empty state ───────────────────────────────────────────────────
-          <div className="py-16 flex flex-col items-center gap-3 text-center">
-            <Database size={36} className="text-gray-700" />
-            <p className="text-gray-400 font-medium">
-              Your Knowledge Base is empty
-            </p>
-            <p className="text-gray-600 text-sm max-w-xs">
-              Upload files or folders to get started. Supported formats: PDF,
-              DOCX, TXT, MD, XLSX, and code files.
-            </p>
+          <div className="py-20 flex flex-col items-center gap-3 text-center">
+            <div className="w-12 h-12 rounded-xl bg-gray-800 border border-gray-700
+                            flex items-center justify-center">
+              <Database size={22} className="text-gray-600" />
+            </div>
+            <div>
+              <p className="text-gray-300 font-medium text-sm">Knowledge Base is empty</p>
+              <p className="text-gray-600 text-xs mt-1 max-w-xs">
+                Upload files or folders to get started.
+              </p>
+            </div>
             <button
               onClick={() => rootFileInputRef.current?.click()}
-              className="mt-2 flex items-center gap-2 bg-blue-600 hover:bg-blue-700
-                         text-white px-4 py-2 rounded transition-colors text-sm"
+              className="mt-1 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500
+                         text-white px-3 py-1.5 rounded-lg transition-colors text-sm"
             >
-              <Upload size={14} />
+              <Upload size={13} />
               Upload your first file
             </button>
           </div>
@@ -463,6 +503,7 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
             onUploadFolder={handleUploadFolder}
           />
         )}
+      </div>
       </div>
     </div>
   );
