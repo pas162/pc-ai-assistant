@@ -115,6 +115,13 @@ def process_document(document_id: str):
         with open(cache_path, "wb") as f:
             pickle.dump({"chunks": chunk_texts, "embeddings": all_embeddings}, f)
 
+        # 5. Delete raw source file — no longer needed once embedded
+        try:
+            os.remove(file_path)
+            print(f"[Processor] Deleted source file after embedding: {file_path}")
+        except Exception as e:
+            print(f"[Processor] Warning: could not delete source file {file_path}: {e}")
+
         _update_progress(db, document_id, 100, status="completed")
 
     except Exception as e:
