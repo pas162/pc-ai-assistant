@@ -13,6 +13,8 @@ import {
   Wand2,
   RotateCcw,
   Info,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -58,6 +60,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
   const [refineCount, setRefineCount] = useState(0);
   const [jiraConfigured, setJiraConfigured] = useState<boolean | null>(null);
   const [jiraMessage, setJiraMessage] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     getJiraStatus()
@@ -112,6 +115,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
       });
       setGeneratedCode(result.code);
       setRefineCount(0);
+      setIsEditing(false);
       showToast("Script generated", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to generate script", "error");
@@ -128,6 +132,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
       setGeneratedCode(result.code);
       setRefineCount((c) => c + 1);
       setRefinementRequest("");
+      setIsEditing(false);
       showToast("Script refined", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to refine script", "error");
@@ -412,11 +417,23 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => { setGeneratedCode(""); setRefineCount(0); }}
+                    onClick={() => { setGeneratedCode(""); setRefineCount(0); setIsEditing(false); }}
                     className="text-gray-600 hover:text-gray-400 transition-colors"
                     title="Clear"
                   >
                     <RotateCcw size={13} />
+                  </button>
+                  <button
+                    onClick={() => setIsEditing((e) => !e)}
+                    title={isEditing ? "Done editing" : "Edit code"}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors
+                      ${
+                        isEditing
+                          ? "bg-green-600/20 border border-green-500/30 text-green-400 hover:bg-green-600/30"
+                          : "bg-gray-800 hover:bg-gray-700 text-gray-300"
+                      }`}
+                  >
+                    {isEditing ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
                   </button>
                   <button
                     onClick={handleCopy}
@@ -435,23 +452,35 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
                 </div>
               </div>
 
-              {/* Code viewer */}
+              {/* Code viewer / editor */}
               <div className="flex-1 overflow-auto">
-                <SyntaxHighlighter
-                  language="java"
-                  style={vscDarkPlus}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1.25rem",
-                    fontSize: "0.8rem",
-                    background: "#0d0d0d",
-                    minHeight: "100%",
-                  }}
-                  showLineNumbers
-                  wrapLongLines={false}
-                >
-                  {generatedCode}
-                </SyntaxHighlighter>
+                {isEditing ? (
+                  <textarea
+                    value={generatedCode}
+                    onChange={(e) => setGeneratedCode(e.target.value)}
+                    spellCheck={false}
+                    className="w-full h-full min-h-full p-5 bg-[#0d0d0d] text-gray-200
+                               font-mono text-xs leading-relaxed resize-none
+                               focus:outline-none border-none"
+                    style={{ tabSize: 4 }}
+                  />
+                ) : (
+                  <SyntaxHighlighter
+                    language="java"
+                    style={vscDarkPlus}
+                    customStyle={{
+                      margin: 0,
+                      padding: "1.25rem",
+                      fontSize: "0.8rem",
+                      background: "#0d0d0d",
+                      minHeight: "100%",
+                    }}
+                    showLineNumbers
+                    wrapLongLines={false}
+                  >
+                    {generatedCode}
+                  </SyntaxHighlighter>
+                )}
               </div>
 
               {/* Refine bar */}
