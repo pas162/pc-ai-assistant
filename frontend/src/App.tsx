@@ -63,6 +63,9 @@ function App() {
     deleteSession: () => {},
   });
 
+  // ── Pending action to run once WorkspaceDetail mounts ───────────────────
+  const pendingActionRef = useRef<(() => void) | null>(null);
+
   const handleSessionsUpdate = useCallback(
     (
       s: ChatSession[],
@@ -73,7 +76,14 @@ function App() {
       setSessions(s);
       setActiveSession(active);
       setLoadingSessions(loading);
-      if (actions) sessionActionsRef.current = actions;
+      if (actions) {
+        sessionActionsRef.current = actions;
+        if (pendingActionRef.current) {
+          const fn = pendingActionRef.current;
+          pendingActionRef.current = null;
+          setTimeout(fn, 0);
+        }
+      }
     },
     [],
   );
@@ -126,8 +136,22 @@ function App() {
           sessions={sessions}
           activeSession={activeSession}
           loadingSessions={loadingSessions}
-          onNewSession={() => sessionActionsRef.current.newSession()}
-          onSelectSession={(s) => sessionActionsRef.current.selectSession(s)}
+          onNewSession={() => {
+            if (mainView !== null) {
+              pendingActionRef.current = () => sessionActionsRef.current.newSession();
+              setMainView(null);
+            } else {
+              sessionActionsRef.current.newSession();
+            }
+          }}
+          onSelectSession={(s) => {
+            if (mainView !== null) {
+              pendingActionRef.current = () => sessionActionsRef.current.selectSession(s);
+              setMainView(null);
+            } else {
+              sessionActionsRef.current.selectSession(s);
+            }
+          }}
           onDeleteSession={(id) => sessionActionsRef.current.deleteSession(id)}
           activeView={mainView}
           onSelectView={handleSelectView}
