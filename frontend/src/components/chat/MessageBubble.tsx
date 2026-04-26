@@ -1,3 +1,4 @@
+import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Bot, FileText, Paperclip, User } from "lucide-react";
@@ -16,7 +17,7 @@ interface MessageBubbleProps {
   attachedFiles?: AttachedFile[];
 }
 
-export default function MessageBubble({
+const MessageBubble = memo(function MessageBubble({
   message,
   sources,
   mentionedDocs,
@@ -134,4 +135,6 @@ export default function MessageBubble({
       </div>
     </div>
   );
-}
+});
+
+export default MessageBubble;

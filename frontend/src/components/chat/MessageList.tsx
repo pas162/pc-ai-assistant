@@ -15,10 +15,20 @@ const MessageList = memo(function MessageList({
   loading,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isStreamingRef = useRef(false);
+
+  useEffect(() => {
+    isStreamingRef.current = !!streamingText;
+  }, [streamingText]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText]);
+  }, [messages]);
+
+  useEffect(() => {
+    if (!streamingText) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+  }, [streamingText]);
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">

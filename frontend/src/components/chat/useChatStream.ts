@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { streamMessage } from "../../api";
 import type {
   ChatSessionDetail,
@@ -29,11 +29,17 @@ export function useChatStream({
   const [streamingText, setStreamingText] = useState("");
   const streamingTextRef = useRef("");
   const abortControllerRef = useRef<AbortController | null>(null);
+  const chunkBufferRef = useRef("");
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Keep streamingTextRef in sync
-  useEffect(() => {
-    streamingTextRef.current = streamingText;
-  }, [streamingText]);
+  const flushBuffer = useCallback(() => {
+    if (chunkBufferRef.current) {
+      const accumulated = chunkBufferRef.current;
+      streamingTextRef.current = accumulated;
+      setStreamingText(accumulated);
+    }
+    flushTimerRef.current = null;
+  }, []);
 
   const handleSend = useCallback(
     async (
@@ -64,6 +70,12 @@ export function useChatStream({
 
       setLoading(true);
       setStreamingText("");
+      chunkBufferRef.current = "";
+      streamingTextRef.current = "";
+      if (flushTimerRef.current) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -87,9 +99,12 @@ export function useChatStream({
           questionText,
           selectedModel,
           useRag,
-          // ── onChunk ──
+          // ── onChunk — buffer and flush at most every 50ms ──
           (chunk) => {
-            setStreamingText((prev) => prev + chunk);
+            chunkBufferRef.current += chunk;
+            if (!flushTimerRef.current) {
+              flushTimerRef.current = setTimeout(flushBuffer, 50);
+            }
           },
           // ── onDone ──
           (data: StreamDoneData) => {
