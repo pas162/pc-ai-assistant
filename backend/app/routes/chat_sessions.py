@@ -407,15 +407,14 @@ def stream_message(
                             ),
                         }
                     ]
-                    generated_title = chat_with_llm(title_messages).strip()
+                    generated_title = chat_with_llm(title_messages, model=request.model).strip()
                     if len(generated_title) > 60:
                         generated_title = generated_title[:60].strip()
                     session.title = generated_title
                     db.commit()
                     new_title = generated_title
-                    print(f"  Auto-title set to: {new_title}")
-                except Exception as e:
-                    print(f"  Auto-title failed (non-critical): {e}")
+                except Exception:
+                    pass  # Auto-title is non-critical
 
             # ── Send done event ───────────────────────────────────────
             done_payload = json.dumps(

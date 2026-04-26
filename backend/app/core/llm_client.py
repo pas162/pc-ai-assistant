@@ -43,9 +43,10 @@ def chat_with_llm(messages: list, model: str = None) -> str:
     with httpx.Client(timeout=60.0) as client:
         last_error = None
         for path in paths_to_try:
+            url = f"{base_url}{path}"
             try:
                 response = client.post(
-                    f"{base_url}{path}",
+                    url,
                     json=request_body,
                     headers=headers
                 )
