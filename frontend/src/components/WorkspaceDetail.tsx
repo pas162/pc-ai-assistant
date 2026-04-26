@@ -555,75 +555,49 @@ export default function WorkspaceDetail({
   // ── Main render ───────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full bg-gray-950">
-      {/* ── Header + Tabs ──────────────────────────────────────────────────── */}
-      <div className="px-4 border-b border-gray-700 flex items-center gap-4 shrink-0">
-        {/* Workspace name + description */}
-        <div className="flex items-center gap-2 py-2 shrink-0">
-          <h2 className="text-sm font-semibold text-gray-100">
-            {workspace.name}
-          </h2>
-          {workspace.description && (
-            <span
-              className="text-xs text-gray-600 bg-gray-800 px-2 py-0.5
-                         rounded-full border border-gray-700 max-w-50 truncate"
-              title={workspace.description}
-            >
-              {workspace.description}
+      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
+      <div className="px-3 border-b border-gray-800 flex items-center gap-0.5 shrink-0 bg-gray-950">
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`flex items-center px-3 py-2.5 text-xs font-medium
+            transition-colors border-b-2 -mb-px
+            ${activeTab === "chat"
+              ? "border-blue-500 text-gray-100"
+              : "border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600"
+            }`}
+        >
+          Chat
+        </button>
+
+        <button
+          onClick={() => setActiveTab("documents")}
+          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium
+            transition-colors border-b-2 -mb-px
+            ${activeTab === "documents"
+              ? "border-blue-500 text-gray-100"
+              : "border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600"
+            }`}
+        >
+          Documents
+          {attachedDocs.length > 0 && (
+            <span className="bg-gray-800 text-gray-400 text-xs px-1.5 py-0.5 rounded-full leading-none">
+              {attachedDocs.length}
             </span>
           )}
-        </div>
+        </button>
 
-        {/* Divider */}
-        <span className="text-gray-700 text-lg">|</span>
-
-        {/* Tabs */}
-        <div className="flex gap-1">
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
-              ${
-                activeTab === "chat"
-                  ? "border-blue-500 text-blue-400"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            Chat
-          </button>
-          <button
-            onClick={() => setActiveTab("documents")}
-            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
-              flex items-center gap-1.5
-              ${
-                activeTab === "documents"
-                  ? "border-blue-500 text-blue-400"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            Documents
-            {attachedDocs.length > 0 && (
-              <span
-                className="bg-gray-700 text-gray-300 text-xs
-                           px-1.5 py-0.5 rounded-full leading-none"
-              >
-                {attachedDocs.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("workflows")}
-            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
-              flex items-center gap-1.5
-              ${
-                activeTab === "workflows"
-                  ? "border-indigo-500 text-indigo-400"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
-              }`}
-          >
-            <Bot size={14} />
-            Workflows
-          </button>
-        </div>
+        <button
+          onClick={() => setActiveTab("workflows")}
+          className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium
+            transition-colors border-b-2 -mb-px
+            ${activeTab === "workflows"
+              ? "border-blue-500 text-gray-100"
+              : "border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600"
+            }`}
+        >
+          <Bot size={13} />
+          Workflows
+        </button>
       </div>
 
       {/* ── Tab Content ────────────────────────────────────────────────────── */}

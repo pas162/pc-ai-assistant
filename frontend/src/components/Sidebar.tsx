@@ -152,8 +152,11 @@ export default function Sidebar({
     <div className="flex flex-col h-full overflow-hidden bg-gray-900 select-none">
 
       {/* ── App title ─────────────────────────────────────────────────────── */}
-      <div className="px-4 py-3 border-b border-gray-800 shrink-0">
-        <span className="text-white text-sm font-bold tracking-tight">
+      <div className="px-4 py-2.5 border-b border-gray-800 shrink-0 flex items-center gap-2">
+        <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center shrink-0">
+          <span className="text-white text-xs font-bold leading-none">P</span>
+        </div>
+        <span className="text-gray-300 text-xs font-semibold tracking-wide">
           PC AI Assistant
         </span>
       </div>
