@@ -80,6 +80,13 @@ function App() {
 
   const { toasts, showToast, removeToast } = useToast();
 
+  // ── Listen for deep-link events from child components ─────────────────────
+  useEffect(() => {
+    const handler = () => setMainView("settings");
+    window.addEventListener("open-settings", handler);
+    return () => window.removeEventListener("open-settings", handler);
+  }, []);
+
   const handleSelectWorkspace = (ws: Workspace) => {
     setSelectedWorkspace(ws);
     localStorage.setItem("selectedWorkspace", JSON.stringify(ws));
@@ -99,7 +106,7 @@ function App() {
   };
 
   const handleSelectView = (view: "kb" | "settings") => {
-    setMainView((prev) => (prev === view ? null : view));
+    setMainView(view);
   };
 
   const handleSessionChange = (workspaceId: string, sessionId: string) => {

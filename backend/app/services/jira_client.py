@@ -15,7 +15,7 @@ def get_jira_config() -> tuple[str, str]:
     db = get_db_direct()
     try:
         rows = db.query(Setting).filter(
-            Setting.key.in_("jira_api_token", "jira_base_url")
+            Setting.key.in_(["jira_api_token", "jira_base_url"])
         ).all()
         values = {row.key: row.value or "" for row in rows}
         base_url = values.get("jira_base_url", "")
