@@ -265,7 +265,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
           </div>
 
           {/* Ticket details */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
             {!ticketData ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-6 py-12">
                 <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700
