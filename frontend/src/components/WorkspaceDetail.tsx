@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import {
   getDocuments,
   getFolders,
@@ -18,7 +18,41 @@ import {
   FolderOpen,
   FileText,
   Bot,
+  Link,
+  Unlink,
 } from "lucide-react";
+
+function stripUuid(filename: string): string {
+  return filename.replace(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_/,
+    "",
+  );
+}
+
+function getStatusDot(status: string) {
+  const m: Record<string, { dot: string; text: string; label: string }> = {
+    completed:  { dot: "bg-green-500",              text: "text-green-400",  label: "completed" },
+    processing: { dot: "bg-blue-400 animate-pulse", text: "text-blue-400",  label: "processing" },
+    failed:     { dot: "bg-red-500",                text: "text-red-400",   label: "failed" },
+    pending:    { dot: "bg-yellow-500",             text: "text-yellow-400",label: "pending" },
+  };
+  return m[status] ?? m.pending;
+}
+
+function getTypeBadge(fileType: string | null) {
+  const m: Record<string, { bg: string; text: string }> = {
+    pdf:  { bg: "bg-red-500/15",    text: "text-red-400" },
+    docx: { bg: "bg-blue-500/15",   text: "text-blue-400" },
+    xlsx: { bg: "bg-green-500/15",  text: "text-green-400" },
+    java: { bg: "bg-orange-500/15", text: "text-orange-400" },
+    py:   { bg: "bg-yellow-500/15", text: "text-yellow-400" },
+    ts:   { bg: "bg-cyan-500/15",   text: "text-cyan-400" },
+    js:   { bg: "bg-cyan-500/15",   text: "text-cyan-400" },
+    xml:  { bg: "bg-purple-500/15", text: "text-purple-400" },
+    md:   { bg: "bg-gray-500/15",   text: "text-gray-300" },
+  };
+  return (fileType ? m[fileType] : undefined) ?? { bg: "bg-gray-700/50", text: "text-gray-500" };
+}
 
 interface WorkspaceDetailProps {
   workspace: Workspace;
@@ -39,7 +73,7 @@ interface WorkspaceDetailProps {
 
 type Tab = "chat" | "documents" | "workflows";
 
-// ── Folder tree node type ─────────────────────────────────────────────────
+// ΓöÇΓöÇ Folder tree node type ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 interface FolderTreeNode {
   id: string;
   name: string;
@@ -59,7 +93,7 @@ export default function WorkspaceDetail({
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
 
-  // ── Session management (lifted here so Sidebar can observe it) ────────────
+  // ΓöÇΓöÇ Session management (lifted here so Sidebar can observe it) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const {
     sessions,
     setSessions,
@@ -97,20 +131,20 @@ export default function WorkspaceDetail({
   >(new Set());
   const [confirmDetach, setConfirmDetach] = useState<Document | null>(null);
 
-  // ── Sync attached docs when workspace changes ─────────────────────────────
+  // ΓöÇΓöÇ Sync attached docs when workspace changes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   useEffect(() => {
     setAttachedDocs(workspace.documents);
     setActiveTab("chat");
   }, [workspace.id, workspace.documents]);
 
-  // ── Fetch folders on mount so attached tree has structure ─────────────────
+  // ΓöÇΓöÇ Fetch folders on mount so attached tree has structure ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   useEffect(() => {
     getFolders()
       .then(setFolders)
       .catch(() => {});
   }, []);
 
-  // ── Fetch all docs + folders when modal opens ─────────────────────────────
+  // ΓöÇΓöÇ Fetch all docs + folders when modal opens ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   useEffect(() => {
     if (showAttachModal) {
       Promise.all([getDocuments(), getFolders()])
@@ -127,9 +161,9 @@ export default function WorkspaceDetail({
     }
   }, [showAttachModal]);
 
-  // ── Build folder tree from flat lists ────────────────────────────────────
+  // ΓöÇΓöÇ Build folder tree from flat lists ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   // WHY useMemo? This recalculates only when docs, folders, or attachedDocs
-  // change — not on every render. Tree assembly is O(n) but still worth caching.
+  // change ΓÇö not on every render. Tree assembly is O(n) but still worth caching.
   const { rootFolders, rootDocuments } = useMemo(() => {
     // Only show unattached + completed docs in the modal
     const available = allDocuments.filter(
@@ -138,7 +172,7 @@ export default function WorkspaceDetail({
         !attachedDocs.some((a) => a.id === doc.id),
     );
 
-    // Step 1 — build path → node map
+    // Step 1 ΓÇö build path ΓåÆ node map
     const nodeMap = new Map<string, FolderTreeNode>();
     for (const f of folders) {
       nodeMap.set(f.path, {
@@ -150,7 +184,7 @@ export default function WorkspaceDetail({
       });
     }
 
-    // Step 2 — link children to parents
+    // Step 2 ΓÇö link children to parents
     const rootFolders: FolderTreeNode[] = [];
     for (const f of folders) {
       const node = nodeMap.get(f.path)!;
@@ -164,7 +198,7 @@ export default function WorkspaceDetail({
       }
     }
 
-    // Step 3 — attach documents to their folder node
+    // Step 3 ΓÇö attach documents to their folder node
     const rootDocuments: Document[] = [];
     for (const doc of available) {
       if (!doc.folder_path) {
@@ -172,18 +206,18 @@ export default function WorkspaceDetail({
       } else {
         const node = nodeMap.get(doc.folder_path);
         if (node) node.documents.push(doc);
-        else rootDocuments.push(doc); // orphan → show at root
+        else rootDocuments.push(doc); // orphan ΓåÆ show at root
       }
     }
 
-    // Step 4 — sort alphabetically
+    // Step 4 ΓÇö sort alphabetically
     rootFolders.sort((a, b) => a.name.localeCompare(b.name));
     rootDocuments.sort((a, b) => a.filename.localeCompare(b.filename));
 
     return { rootFolders, rootDocuments };
   }, [allDocuments, folders, attachedDocs]);
 
-  // ── Attached docs tree ────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Attached docs tree ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const { attachedRootFolders, attachedRootDocuments } = useMemo(() => {
     const nodeMap = new Map<string, FolderTreeNode>();
     for (const f of folders) {
@@ -236,7 +270,7 @@ export default function WorkspaceDetail({
     setAttachedExpandedPaths(new Set(folders.map((f) => f.path)));
   }, [folders]);
 
-  // ── Selection helpers ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Selection helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const getDocIdsUnderPath = (path: string): string[] => {
     return allDocuments
       .filter(
@@ -282,7 +316,7 @@ export default function WorkspaceDetail({
     });
   };
 
-  // ── Bulk Attach ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Bulk Attach ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const handleBulkAttach = async () => {
     if (selectedIds.size === 0) return;
     setAttaching(true);
@@ -306,7 +340,7 @@ export default function WorkspaceDetail({
     }
   };
 
-  // ── Detach single doc ─────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Detach single doc ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const handleDetach = async (doc: Document) => {
     try {
       await unlinkDocumentFromWorkspace(workspace.id, doc.id);
@@ -318,21 +352,8 @@ export default function WorkspaceDetail({
     }
   };
 
-  // ── Status badge ──────────────────────────────────────────────────────────
-  function getStatusBadgeClass(status: string): string {
-    switch (status) {
-      case "completed":
-        return "bg-green-900 text-green-300";
-      case "processing":
-        return "bg-blue-900 text-blue-300";
-      case "failed":
-        return "bg-red-900 text-red-300";
-      default:
-        return "bg-yellow-900 text-yellow-300";
-    }
-  }
-
-  // ── Attached folder node renderer ─────────────────────────────────────────
+  // ΓöÇΓöÇ Status badge ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ΓöÇΓöÇ Attached folder node renderer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const renderAttachedFolderNode = (
     node: FolderTreeNode,
     depth = 0,
@@ -396,46 +417,40 @@ export default function WorkspaceDetail({
 
   const renderAttachedDocRow = (doc: Document, depth = 0): React.ReactNode => {
     const indent = depth * 16;
+    const sd = getStatusDot(doc.status);
+    const tb = getTypeBadge(doc.file_type);
     return (
       <div
         key={doc.id}
-        className="flex items-center justify-between px-6 py-3
-                   hover:bg-gray-800 transition-colors border-b
-                   border-gray-700/50 last:border-0 group"
-        style={{ paddingLeft: `${indent + 24}px` }}
+        className="flex items-center gap-3 px-4 py-2.5
+                   hover:bg-gray-800/60 transition-colors border-b
+                   border-gray-800/60 last:border-0 group"
+        style={{ paddingLeft: `${indent + 16}px` }}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText size={13} className="text-gray-500 shrink-0" />
-          <span
-            className="text-sm font-medium text-gray-200 truncate"
-            title={doc.filename}
-          >
-            {doc.filename}
-          </span>
-          <span className="text-xs text-gray-600 uppercase shrink-0">
-            {doc.file_type || "unknown"}
-          </span>
+        <FileText size={13} className="text-gray-600 shrink-0" />
+        <span className="flex-1 text-sm text-gray-300 truncate min-w-0" title={doc.filename}>
+          {stripUuid(doc.filename)}
+        </span>
+        <span className={`shrink-0 text-xs font-semibold uppercase px-1.5 py-0.5 rounded ${tb.bg} ${tb.text}`}>
+          {doc.file_type ?? "?"}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`w-1.5 h-1.5 rounded-full ${sd.dot}`} />
+          <span className={`text-xs ${sd.text}`}>{sd.label}</span>
         </div>
-        <div className="flex items-center gap-3 shrink-0 ml-2">
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full
-                           ${getStatusBadgeClass(doc.status)}`}
-          >
-            {doc.status}
-          </span>
-          <button
-            onClick={() => setConfirmDetach(doc)}
-            className="text-red-400 hover:text-red-300 text-xs font-medium
-                       transition-colors opacity-0 group-hover:opacity-100"
-          >
-            Remove
-          </button>
-        </div>
+        <button
+          onClick={() => setConfirmDetach(doc)}
+          title="Remove from workspace"
+          className="text-gray-700 hover:text-red-400 transition-colors
+                     opacity-0 group-hover:opacity-100 shrink-0"
+        >
+          <Unlink size={13} />
+        </button>
       </div>
     );
   };
 
-  // ── Recursive folder node renderer ────────────────────────────────────────
+  // ΓöÇΓöÇ Recursive folder node renderer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const renderFolderNode = (
     node: FolderTreeNode,
     depth = 0,
@@ -453,7 +468,7 @@ export default function WorkspaceDetail({
                      border-b border-gray-700/30"
           style={{ paddingLeft: `${indent + 8}px` }}
         >
-          {/* Folder checkbox — supports indeterminate state */}
+          {/* Folder checkbox ΓÇö supports indeterminate state */}
           <input
             type="checkbox"
             checked={fullySel}
@@ -493,7 +508,7 @@ export default function WorkspaceDetail({
             <FolderIcon size={14} className="text-yellow-400 shrink-0" />
           )}
 
-          {/* Folder name — click to expand/collapse */}
+          {/* Folder name ΓÇö click to expand/collapse */}
           <span
             className="text-sm font-medium text-gray-200 cursor-pointer select-none"
             onClick={() =>
@@ -512,7 +527,7 @@ export default function WorkspaceDetail({
           </span>
         </div>
 
-        {/* Children — recursive */}
+        {/* Children ΓÇö recursive */}
         {isExpanded && (
           <div>
             {node.children.map((child) => renderFolderNode(child, depth + 1))}
@@ -523,7 +538,7 @@ export default function WorkspaceDetail({
     );
   };
 
-  // ── Document row renderer ─────────────────────────────────────────────────
+  // ΓöÇΓöÇ Document row renderer ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const renderDocRow = (doc: Document, depth = 0): React.ReactNode => {
     const indent = depth * 16;
     return (
@@ -552,10 +567,10 @@ export default function WorkspaceDetail({
     );
   };
 
-  // ── Main render ───────────────────────────────────────────────────────────
+  // ΓöÇΓöÇ Main render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   return (
     <div className="flex flex-col h-full bg-gray-950">
-      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Tab bar ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <div className="px-3 border-b border-gray-800 flex items-center gap-0.5 shrink-0 bg-gray-950">
         <button
           onClick={() => setActiveTab("chat")}
@@ -600,7 +615,7 @@ export default function WorkspaceDetail({
         </button>
       </div>
 
-      {/* ── Tab Content ────────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ Tab Content ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Chat tab */}
         <div
@@ -627,26 +642,38 @@ export default function WorkspaceDetail({
         {activeTab === "documents" && (
           <div className="flex-1 overflow-y-auto px-8 py-6">
             <div className="flex flex-col gap-6">
-              <div className="bg-gray-900 shadow rounded-lg border border-gray-700 overflow-hidden">
+              <div className="rounded-xl border border-gray-800 overflow-hidden bg-gray-900">
                 {/* Documents header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-                  <h3 className="font-semibold text-gray-200">
-                    Attached Documents
-                  </h3>
+                <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <Link size={14} className="text-gray-500" />
+                    <span className="text-sm font-medium text-gray-200">Attached Documents</span>
+                    {attachedDocs.length > 0 && (
+                      <span className="bg-gray-800 text-gray-400 text-xs px-1.5 py-0.5 rounded-full">
+                        {attachedDocs.length}
+                      </span>
+                    )}
+                  </div>
                   <button
                     onClick={() => setShowAttachModal(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white
-                               text-sm px-3 py-1.5 rounded transition-colors"
+                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500
+                               text-white text-xs px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    + Attach Documents
+                    <Link size={12} /> Attach Documents
                   </button>
                 </div>
 
-                {/* Attached docs table */}
+                {/* Attached docs list */}
                 {attachedDocs.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    No documents attached yet. Click "Attach Documents" to add
-                    from the Knowledge Base.
+                  <div className="py-12 flex flex-col items-center gap-2 text-center">
+                    <div className="w-10 h-10 rounded-xl bg-gray-800 border border-gray-700
+                                    flex items-center justify-center">
+                      <Link size={16} className="text-gray-600" />
+                    </div>
+                    <p className="text-sm text-gray-500">No documents attached</p>
+                    <p className="text-xs text-gray-600">
+                      Click "Attach Documents" to add from the Knowledge Base.
+                    </p>
                   </div>
                 ) : (
                   <div>
@@ -664,7 +691,7 @@ export default function WorkspaceDetail({
         )}
       </div>
 
-      {/* ── ATTACH MODAL ───────────────────────────────────────────────────── */}
+      {/* ΓöÇΓöÇ ATTACH MODAL ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
       {confirmDetach && (
         <ConfirmModal
           message={`Remove "${confirmDetach.filename}" from this workspace?`}
