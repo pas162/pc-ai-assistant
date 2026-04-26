@@ -437,7 +437,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
               </div>
 
               {/* Code editor — always editable with syntax highlighting */}
-              <div className="flex-1 overflow-auto">
+              <div className="flex-1 min-h-0">
                 <CodeMirror
                   value={generatedCode}
                   height="100%"
@@ -450,7 +450,7 @@ export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
                     highlightActiveLine: true,
                     autocompletion: false,
                   }}
-                  style={{ fontSize: "0.8rem", minHeight: "100%" }}
+                  style={{ fontSize: "0.8rem", height: "100%" }}
                 />
               </div>
 

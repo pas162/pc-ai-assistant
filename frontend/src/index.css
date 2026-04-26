@@ -41,6 +41,10 @@
   background-color: #6b7280;
 }
 
+/* CodeMirror height fill */
+.cm-editor { height: 100%; }
+.cm-scroller { overflow: auto; }
+
 /* CodeMirror editor scrollbar */
 .cm-scroller::-webkit-scrollbar {
   width: 5px;
