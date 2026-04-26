@@ -412,6 +412,7 @@ export interface JiraConfigStatus {
 export interface GenerateScriptRequest {
   ticket_data: JiraTicketData;
   additional_context?: string;
+  workspace_id?: string;
 }
 
 export interface GenerateScriptResponse {

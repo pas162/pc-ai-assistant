@@ -40,7 +40,11 @@ const PRIORITY_COLORS: Record<string, string> = {
   Lowest:  "text-gray-400 bg-gray-500/10 border-gray-500/20",
 };
 
-export default function SwtbotWorkflow() {
+interface SwtbotWorkflowProps {
+  workspaceId?: string;
+}
+
+export default function SwtbotWorkflow({ workspaceId }: SwtbotWorkflowProps) {
   const { showToast } = useToast();
 
   const [ticketId, setTicketId] = useState("");
@@ -104,6 +108,7 @@ export default function SwtbotWorkflow() {
       const result = await generateSwtbotScript({
         ticket_data: ticketData,
         additional_context: additionalContext || undefined,
+        workspace_id: workspaceId,
       });
       setGeneratedCode(result.code);
       setRefineCount(0);
@@ -349,6 +354,12 @@ export default function SwtbotWorkflow() {
                                text-xs text-gray-200 placeholder-gray-600
                                focus:outline-none focus:border-indigo-500 resize-none mb-2"
                   />
+                  {workspaceId && (
+                    <p className="text-xs text-green-500/80 mb-2 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                      Workspace docs will be used as context
+                    </p>
+                  )}
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating}

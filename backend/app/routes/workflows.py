@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 
 from app.core.database import get_db
+from app.services.retriever import retrieve_relevant_chunks, build_context
 from app.services.jira_client import (
     fetch_jira_issue,
     parse_zephyr_test_case,
@@ -41,6 +42,7 @@ class GenerateScriptRequest(BaseModel):
     """Request to generate SWTBot script."""
     ticket_data: Dict[str, Any] = Field(..., description="Parsed test case from /jira/fetch")
     additional_context: Optional[str] = Field(default="", description="Additional instructions")
+    workspace_id: Optional[str] = Field(default=None, description="Workspace ID to retrieve attached docs as context")
 
 
 class GenerateScriptResponse(BaseModel):
@@ -201,22 +203,34 @@ def fetch_jira_ticket(request: JiraTicketRequest):
 def generate_swtbot(request: GenerateScriptRequest):
     """
     Generate SWTBot Java test script from a Jira test case.
-    
-    Takes parsed ticket data and generates complete, runnable Java code
-    for SWTBot test automation in e² studio.
+    If workspace_id is provided, retrieves relevant chunks from attached
+    documents and injects them as additional context for the LLM.
     """
     try:
+        doc_context = ""
+        if request.workspace_id:
+            query = f"{request.ticket_data.get('name', '')} {request.ticket_data.get('description', '')}"
+            chunks = retrieve_relevant_chunks(
+                question=query,
+                workspace_id=request.workspace_id,
+                n_results=10,
+            )
+            if chunks:
+                doc_context = "\n\nRelevant reference material from workspace documents:\n" + build_context(chunks)
+
+        combined_context = (request.additional_context or "") + doc_context
+
         code = generate_swtbot_script(
             test_case=request.ticket_data,
-            additional_context=request.additional_context
+            additional_context=combined_context
         )
-        
+
         return GenerateScriptResponse(
             code=code,
             test_key=request.ticket_data.get("key", "UNKNOWN"),
             test_name=request.ticket_data.get("name", "Unknown Test")
         )
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Code generation failed: {str(e)}")
 

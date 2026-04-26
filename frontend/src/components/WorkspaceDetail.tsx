@@ -634,7 +634,7 @@ export default function WorkspaceDetail({
         {/* Workflows tab */}
         {activeTab === "workflows" && (
           <div className="flex-1 overflow-hidden flex flex-col">
-            <SwtbotWorkflow />
+            <SwtbotWorkflow workspaceId={workspace.id} />
           </div>
         )}
 
