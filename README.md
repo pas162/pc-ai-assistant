@@ -131,6 +131,27 @@ Key values to set:
 > **LLM Settings** (API token, base URL) are configured inside the app via
 > the Settings panel (gear icon, top right). No `.env` changes needed.
 
+### Supported LLM Providers
+
+| Provider | Base URL Example | Notes |
+|----------|-----------------|-------|
+| **Groq** (Free tier) | `https://api.groq.com/openai/v1` | 20 req/min, 200K tokens/day |
+| **OpenRouter** | `https://openrouter.ai/api/v1` | Multiple models including GPT-4 |
+| **Google Gemini** | `https://generativelanguage.googleapis.com/v1beta` | 60 req/min free tier |
+| **Ollama (Local)** | `http://localhost:11434` | Run AI locally, completely free |
+| **Custom/OpenAI** | `https://api.openai.com/v1` | Or your internal LLM endpoint |
+
+The app automatically detects available models from the provider and handles compatibility.
+
+### Features
+
+- **Chat with Documents (RAG):** Upload PDFs, ask questions with AI-powered answers
+- **Model Persistence:** Each chat session remembers which model was used
+- **File Attachments:** Attach code files directly to chat (up to 500KB)
+- **Document Mentions:** Use `@` to reference specific documents in chat
+- **Session Management:** Create, rename, delete chat sessions per workspace
+- **SWTBot Workflow:** Generate test scripts from Jira tickets (requires Jira API setup)
+
 ---
 
 ## 📁 Project Structure
