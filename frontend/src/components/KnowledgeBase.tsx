@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   getDocuments,
+  getFolders,
   uploadDocument,
   deleteDocument,
   createFolder,
@@ -52,26 +53,12 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("fetchAll: starting...");
-
-      // ADD: bypass axios, use raw fetch to isolate the issue
-      const [docsRes, folsRes] = await Promise.all([
-        fetch("http://localhost:8000/documents"),
-        fetch("http://localhost:8000/folders"),
-      ]);
-      console.log("fetch status:", docsRes.status, folsRes.status);
-
-      const docs = (await docsRes.json()) as Document[];
-      const fols = (await folsRes.json()) as Folder[];
-      console.log("docs OK", docs.length, "folders OK", fols.length);
-
+      const [docs, fols] = await Promise.all([getDocuments(), getFolders()]);
       setDocuments(docs);
       setFolders(fols);
-    } catch (e) {
-      console.error("fetchAll error:", e);
+    } catch {
       showToast("Failed to load knowledge base", "error");
     } finally {
-      console.log("fetchAll: done");
       setLoading(false);
     }
   }, [showToast]);
@@ -154,7 +141,6 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
         for (const file of Array.from(files)) {
           const relativePath = (file as File & { webkitRelativePath: string })
             .webkitRelativePath;
-          console.log("webkitRelativePath:", relativePath);
           // Strip filename, keep folder part
           const parts = relativePath.split("/");
           parts.pop(); // remove filename
@@ -189,13 +175,8 @@ export default function KnowledgeBase({ showToast }: KnowledgeBaseProps) {
           }
         }
 
-        // Upload each file into its folder
-        console.log("Folders created. Starting file uploads...");
-
         for (let i = 0; i < fileEntries.length; i++) {
           const { file, folderPath } = fileEntries[i];
-          console.log(`Uploading: ${file.name} → folder_path: "${folderPath}"`);
-
           await uploadDocument(
             file,
             (percent) => {

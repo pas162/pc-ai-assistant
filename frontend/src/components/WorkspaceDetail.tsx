@@ -5,10 +5,12 @@ import {
   unlinkDocumentFromWorkspace,
   bulkLinkDocumentsToWorkspace,
 } from "../api";
-import type { Workspace, Document, Folder } from "../api";
+import type { Workspace, Document, Folder, ChatSession, ChatSessionDetail } from "../api";
 import type { ToastType } from "../hooks/useToast";
 import ChatPanel from "./chat/ChatPanel";
 import { SwtbotWorkflow } from "./workflows";
+import { ConfirmModal } from "./Modal";
+import { useChatSessions } from "./chat/useChatSessions";
 import {
   ChevronRight,
   ChevronDown,
@@ -23,6 +25,16 @@ interface WorkspaceDetailProps {
   showToast: (message: string, type: ToastType) => void;
   activeSessionId: string | null;
   onSessionChange: (workspaceId: string, sessionId: string) => void;
+  onSessionsUpdate?: (
+    sessions: ChatSession[],
+    active: ChatSessionDetail | null,
+    loading: boolean,
+    actions?: {
+      newSession: () => void;
+      selectSession: (s: ChatSession) => void;
+      deleteSession: (id: string) => void;
+    }
+  ) => void;
 }
 
 type Tab = "chat" | "documents" | "workflows";
@@ -41,10 +53,38 @@ export default function WorkspaceDetail({
   showToast,
   activeSessionId,
   onSessionChange,
+  onSessionsUpdate,
 }: WorkspaceDetailProps) {
   const [activeTab, setActiveTab] = useState<Tab>("chat");
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+
+  // ── Session management (lifted here so Sidebar can observe it) ────────────
+  const {
+    sessions,
+    setSessions,
+    activeSession,
+    setActiveSession,
+    loadingSessions,
+    handleNewSession,
+    handleSelectSession,
+    handleDeleteSession,
+  } = useChatSessions({
+    workspaceId: workspace.id,
+    activeSessionId,
+    onSessionChange,
+    showToast,
+  });
+
+  // Notify App whenever session state changes, passing real action handlers
+  useEffect(() => {
+    onSessionsUpdate?.(sessions, activeSession, loadingSessions, {
+      newSession: handleNewSession,
+      selectSession: handleSelectSession,
+      deleteSession: handleDeleteSession,
+    });
+  }, [sessions, activeSession, loadingSessions, onSessionsUpdate,
+      handleNewSession, handleSelectSession, handleDeleteSession]);
   const [attachedDocs, setAttachedDocs] = useState<Document[]>(
     workspace.documents,
   );
@@ -55,6 +95,7 @@ export default function WorkspaceDetail({
   const [attachedExpandedPaths, setAttachedExpandedPaths] = useState<
     Set<string>
   >(new Set());
+  const [confirmDetach, setConfirmDetach] = useState<Document | null>(null);
 
   // ── Sync attached docs when workspace changes ─────────────────────────────
   useEffect(() => {
@@ -267,11 +308,10 @@ export default function WorkspaceDetail({
 
   // ── Detach single doc ─────────────────────────────────────────────────────
   const handleDetach = async (doc: Document) => {
-    if (!window.confirm(`Remove "${doc.filename}" from this workspace?`))
-      return;
     try {
       await unlinkDocumentFromWorkspace(workspace.id, doc.id);
       setAttachedDocs((prev) => prev.filter((d) => d.id !== doc.id));
+      setConfirmDetach(null);
       showToast(`"${doc.filename}" removed`, "info");
     } catch {
       showToast("Failed to detach document", "error");
@@ -384,7 +424,7 @@ export default function WorkspaceDetail({
             {doc.status}
           </span>
           <button
-            onClick={() => handleDetach(doc)}
+            onClick={() => setConfirmDetach(doc)}
             className="text-red-400 hover:text-red-300 text-xs font-medium
                        transition-colors opacity-0 group-hover:opacity-100"
           >
@@ -593,10 +633,10 @@ export default function WorkspaceDetail({
           className={activeTab === "chat" ? "flex-1 overflow-hidden" : "hidden"}
         >
           <ChatPanel
-            workspaceId={workspace.id}
             showToast={showToast}
-            activeSessionId={activeSessionId}
-            onSessionChange={onSessionChange}
+            activeSession={activeSession}
+            setActiveSession={setActiveSession}
+            setSessions={setSessions}
             workspaceDocs={attachedDocs}
             workspaceFolders={folders}
           />
@@ -651,6 +691,15 @@ export default function WorkspaceDetail({
       </div>
 
       {/* ── ATTACH MODAL ───────────────────────────────────────────────────── */}
+      {confirmDetach && (
+        <ConfirmModal
+          message={`Remove "${confirmDetach.filename}" from this workspace?`}
+          confirmLabel="Remove"
+          onConfirm={() => handleDetach(confirmDetach)}
+          onCancel={() => setConfirmDetach(null)}
+        />
+      )}
+
       {showAttachModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center

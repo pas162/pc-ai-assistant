@@ -37,7 +37,7 @@
 | tailwindcss              | 3+      | Utility-first CSS framework              |
 | axios                    | 1+      | HTTP client for API calls                |
 | lucide-react             | latest  | Clean SVG icon library (replaces emojis) |
-| react-resizable-panels   | 2.1.7   | Draggable resizable panel layout         |
+| react-resizable-panels   | 2.1.7   | Draggable resizable panels (Documents tab only) |
 | react-markdown           | latest  | Render markdown in chat messages         |
 | react-syntax-highlighter | latest  | Syntax highlighted code blocks           |
 | @tailwindcss/typography  | latest  | Prose styling for markdown content       |

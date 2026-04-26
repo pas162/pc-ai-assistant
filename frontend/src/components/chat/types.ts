@@ -18,6 +18,7 @@ export type MentionedDoc = Document;
 export interface ChatMessageWithMeta extends ChatMessage {
   mentionedDocs?: MentionedDoc[];
   attachedFiles?: AttachedFile[];
+  sources?: import("../../api").ChatSource[];
 }
 
 export const ALLOWED_ATTACH_EXTENSIONS = [

@@ -113,10 +113,7 @@ export function useChatSessions({
   );
 
   const handleDeleteSession = useCallback(
-    async (e: React.MouseEvent, sessionId: string) => {
-      e.stopPropagation();
-      if (!window.confirm("Delete this chat session?")) return;
-
+    async (sessionId: string) => {
       try {
         await deleteChatSession(sessionId);
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));

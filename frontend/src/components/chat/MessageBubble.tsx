@@ -1,6 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, FileText, User } from "lucide-react";
+import { Bot, FileText, Paperclip, User } from "lucide-react";
 import type { ChatMessage } from "../../api";
 import CodeBlock from "./CodeBlock";
 
@@ -81,9 +81,9 @@ export default function MessageBubble({
                   {attachedFiles.map((f) => (
                     <span
                       key={f.filename}
-                      className="text-xs bg-zinc-600 text-zinc-300 px-2 py-0.5 rounded-full"
+                      className="flex items-center gap-1 text-xs bg-zinc-600 text-zinc-300 px-2 py-0.5 rounded-full"
                     >
-                      📎 {f.filename}
+                      <Paperclip size={10} className="shrink-0" />{f.filename}
                     </span>
                   ))}
                 </div>

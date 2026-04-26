@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { streamMessage } from "../../api";
 import type {
   ChatSessionDetail,
-  ChatSource,
   ChatSession,
   StreamDoneData,
 } from "../../api";
@@ -28,7 +27,6 @@ export function useChatStream({
 }: UseChatStreamProps) {
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
-  const [lastSources, setLastSources] = useState<ChatSource[]>([]);
   const streamingTextRef = useRef("");
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -66,7 +64,6 @@ export function useChatStream({
 
       setLoading(true);
       setStreamingText("");
-      setLastSources([]);
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -96,8 +93,6 @@ export function useChatStream({
           },
           // ── onDone ──
           (data: StreamDoneData) => {
-            console.log("[handleSend] onDone received:", data);
-            setLastSources(data.sources ?? []);
             setActiveSession((prev) => {
               if (!prev) return prev;
               const withoutTemp = prev.messages.filter(
@@ -120,6 +115,7 @@ export function useChatStream({
                     role: "assistant" as const,
                     content: streamingTextRef.current,
                     created_at: new Date().toISOString(),
+                    sources: data.sources ?? [],
                   } as ChatMessageWithMeta,
                 ],
               };
@@ -196,15 +192,35 @@ export function useChatStream({
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-    setLoading(false);
+    const partial = streamingTextRef.current;
     setStreamingText("");
+    setLoading(false);
+    if (partial) {
+      setActiveSession((prev) => {
+        if (!prev) return prev;
+        const withoutTemp = prev.messages.filter(
+          (m) => !m.id.startsWith("temp-"),
+        );
+        return {
+          ...prev,
+          messages: [
+            ...withoutTemp,
+            {
+              id: "stopped-" + Date.now(),
+              role: "assistant" as const,
+              content: partial + " *(stopped)*",
+              created_at: new Date().toISOString(),
+            } as ChatMessageWithMeta,
+          ],
+        };
+      });
+    }
     showToast("Stopped", "info");
-  }, [showToast]);
+  }, [showToast, setActiveSession]);
 
   return {
     loading,
     streamingText,
-    lastSources,
     handleSend,
     handleStop,
   };

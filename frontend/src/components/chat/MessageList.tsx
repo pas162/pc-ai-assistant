@@ -1,21 +1,18 @@
 import { memo, useRef, useEffect } from "react";
 import { Bot } from "lucide-react";
 import MessageBubble from "./MessageBubble";
-import type { ChatSource } from "../../api";
 import type { ChatMessageWithMeta } from "./types";
 
 interface MessageListProps {
   messages: ChatMessageWithMeta[];
   streamingText: string;
   loading: boolean;
-  lastSources: ChatSource[];
 }
 
 const MessageList = memo(function MessageList({
   messages,
   streamingText,
   loading,
-  lastSources,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -30,23 +27,15 @@ const MessageList = memo(function MessageList({
           Ask a question about your documents
         </div>
       ) : (
-        messages.map((msg, index) => {
-          const isLastAssistant =
-            msg.role === "assistant" && index === messages.length - 1;
-          return (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              sources={
-                isLastAssistant
-                  ? lastSources?.map((s) => s.filename)
-                  : undefined
-              }
-              mentionedDocs={msg.mentionedDocs}
-              attachedFiles={msg.attachedFiles}
-            />
-          );
-        })
+        messages.map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            sources={msg.sources?.map((s) => s.filename)}
+            mentionedDocs={msg.mentionedDocs}
+            attachedFiles={msg.attachedFiles}
+          />
+        ))
       )}
       {streamingText && (
         <MessageBubble

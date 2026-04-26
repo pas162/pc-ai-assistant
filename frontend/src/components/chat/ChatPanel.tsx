@@ -1,12 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import type { ImperativePanelHandle } from "react-resizable-panels";
 import { fetchAvailableModels } from "../../api";
-import type { Document, Folder } from "../../api";
+import type { Document, Folder, ChatSessionDetail } from "../../api";
 import type { ToastType } from "../../hooks/useToast";
-import { ChevronRight } from "lucide-react";
-import SessionsSidebar from "./SessionsSidebar";
-import { useChatSessions } from "./useChatSessions";
 import { useChatStream } from "./useChatStream";
 import { useFileAttach } from "./useFileAttach";
 import { useMention } from "./useMention";
@@ -15,24 +10,23 @@ import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 
 interface ChatPanelProps {
-  workspaceId: string;
   showToast: (message: string, type: ToastType) => void;
-  activeSessionId: string | null;
-  onSessionChange: (workspaceId: string, sessionId: string) => void;
+  activeSession: ChatSessionDetail | null;
+  setActiveSession: React.Dispatch<React.SetStateAction<ChatSessionDetail | null>>;
+  setSessions: React.Dispatch<React.SetStateAction<import("../../api").ChatSession[]>>;
   workspaceDocs: Document[];
   workspaceFolders: Folder[];
 }
 
 export default function ChatPanel({
-  workspaceId,
   showToast,
-  activeSessionId,
-  onSessionChange,
+  activeSession,
+  setActiveSession,
+  setSessions,
   workspaceDocs,
   workspaceFolders,
 }: ChatPanelProps) {
   const [question, setQuestion] = useState("");
-  const [sessionsOpen, setSessionsOpen] = useState(true);
   const [availableModels, setAvailableModels] = useState<string[]>([
     DEFAULT_MODEL,
   ]);
@@ -41,34 +35,8 @@ export default function ChatPanel({
   const [useRag, setUseRag] = useState(true);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sessionsPanelRef = useRef<ImperativePanelHandle>(null);
 
-  // ── Hooks ─────────────────────────────────────────────────────────────────
-  const {
-    sessions,
-    setSessions,
-    activeSession,
-    setActiveSession,
-    loadingSessions,
-    renamingId,
-    renameValue,
-    renameInputRef,
-    setRenameValue,
-    handleNewSession,
-    handleSelectSession,
-    handleDeleteSession,
-    handleStartRename,
-    handleRenameSubmit,
-    handleRenameKeyDown,
-  } = useChatSessions({
-    workspaceId,
-    activeSessionId,
-    onSessionChange,
-    showToast,
-    selectedModel,
-  });
-
-  const { loading, streamingText, lastSources, handleSend, handleStop } =
+  const { loading, streamingText, handleSend, handleStop } =
     useChatStream({ activeSession, setActiveSession, setSessions, showToast });
 
   const {
@@ -144,12 +112,6 @@ export default function ChatPanel({
       cancelled = true;
     };
   }, [showToast]);
-
-  // ── Panel collapse sync ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (sessionsOpen) sessionsPanelRef.current?.expand();
-    else sessionsPanelRef.current?.collapse();
-  }, [sessionsOpen]);
 
   // ── Sync selected model with session's model ───────────────────────────────
   useEffect(() => {
@@ -254,116 +216,60 @@ export default function ChatPanel({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full overflow-hidden relative">
-      {!sessionsOpen && (
-        <button
-          onClick={() => setSessionsOpen(true)}
-          className="absolute top-2 left-2 z-20 text-gray-500 hover:text-gray-300
-                     p-1 rounded hover:bg-gray-800 transition-colors"
-          title="Show chat list"
-        >
-          <ChevronRight size={14} />
-        </button>
+    <div className="flex flex-col h-full overflow-hidden">
+      {!activeSession ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 px-8">
+          <p className="text-gray-600 text-sm">
+            Select a chat from the sidebar or create a new one
+          </p>
+        </div>
+      ) : (
+        <>
+          <MessageList
+            messages={activeSession.messages}
+            streamingText={streamingText}
+            loading={loading}
+          />
+          <ChatInput
+            question={question}
+            loading={loading}
+            useRag={useRag}
+            availableModels={availableModels}
+            selectedModel={selectedModel}
+            modelsLoading={modelsLoading}
+            attachedFiles={attachedFiles}
+            mentionedDocs={mentionedDocs}
+            mentionedFolders={mentionedFolders}
+            mentionOpen={mentionOpen}
+            mentionSearch={mentionSearch}
+            mentionIndex={mentionIndex}
+            mentionItems={mentionItems}
+            mentionMode={mentionMode}
+            onSelectMode={selectMode}
+            mentionDropdownRef={mentionDropdownRef}
+            textareaRef={textareaRef}
+            fileInputRef={fileInputRef}
+            workspaceDocsCompletedCount={
+              workspaceDocs.filter((d) => d.status === "completed").length
+            }
+            onQuestionChange={onQuestionChange}
+            onKeyDown={handleKeyDown}
+            onSend={onSend}
+            onStop={handleStop}
+            onToggleRag={onToggleRag}
+            onModelChange={onModelChange}
+            onFileAttach={handleFileAttach}
+            onRemoveFile={removeAttachedFile}
+            onRemoveMentionedDoc={removeMentionedDoc}
+            onRemoveMentionedFolder={removeMentionedFolder}
+            onMentionSearchChange={setMentionSearch}
+            onMentionIndexChange={setMentionIndex}
+            onSelectFile={selectFile}
+            onSelectFolder={selectFolder}
+            onCloseMention={closeMention}
+          />
+        </>
       )}
-
-      <PanelGroup
-        direction="horizontal"
-        autoSaveId="chat-layout"
-        className="flex-1"
-      >
-        <Panel
-          ref={sessionsPanelRef}
-          defaultSize={22}
-          minSize={15}
-          maxSize={40}
-          collapsible
-          collapsedSize={0}
-          onCollapse={() => setSessionsOpen(false)}
-          onExpand={() => setSessionsOpen(true)}
-          style={{ overflow: "hidden", minWidth: 0 }}
-          className="flex flex-col gap-2 pt-2 pr-1 pb-2 pl-1"
-        >
-          {sessionsOpen && (
-            <SessionsSidebar
-              sessions={sessions}
-              activeSession={activeSession}
-              loadingSessions={loadingSessions}
-              renamingId={renamingId}
-              renameValue={renameValue}
-              renameInputRef={renameInputRef}
-              onNewSession={handleNewSession}
-              onSelectSession={handleSelectSession}
-              onDeleteSession={handleDeleteSession}
-              onStartRename={handleStartRename}
-              onRenameChange={(val) => setRenameValue(val)}
-              onRenameSubmit={handleRenameSubmit}
-              onRenameKeyDown={handleRenameKeyDown}
-            />
-          )}
-        </Panel>
-
-        <PanelResizeHandle
-          hitAreaMargins={{ coarse: 10, fine: 5 }}
-          className={`w-1 bg-gray-700 hover:bg-blue-500 active:bg-blue-400
-                     transition-colors cursor-col-resize ${!sessionsOpen ? "hidden" : ""}`}
-        />
-
-        {/* ── Main chat area ── */}
-        <Panel className="flex flex-col overflow-hidden">
-          {!activeSession ? (
-            <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
-              Select a chat or create a new one
-            </div>
-          ) : (
-            <>
-              <MessageList
-                messages={activeSession.messages}
-                streamingText={streamingText}
-                loading={loading}
-                lastSources={lastSources}
-              />
-              <ChatInput
-                question={question}
-                loading={loading}
-                useRag={useRag}
-                availableModels={availableModels}
-                selectedModel={selectedModel}
-                modelsLoading={modelsLoading}
-                attachedFiles={attachedFiles}
-                mentionedDocs={mentionedDocs}
-                mentionedFolders={mentionedFolders}
-                mentionOpen={mentionOpen}
-                mentionSearch={mentionSearch}
-                mentionIndex={mentionIndex}
-                mentionItems={mentionItems}
-                mentionMode={mentionMode}
-                onSelectMode={selectMode}
-                mentionDropdownRef={mentionDropdownRef}
-                textareaRef={textareaRef}
-                fileInputRef={fileInputRef}
-                workspaceDocsCompletedCount={
-                  workspaceDocs.filter((d) => d.status === "completed").length
-                }
-                onQuestionChange={onQuestionChange}
-                onKeyDown={handleKeyDown}
-                onSend={onSend}
-                onStop={handleStop}
-                onToggleRag={onToggleRag}
-                onModelChange={onModelChange}
-                onFileAttach={handleFileAttach}
-                onRemoveFile={removeAttachedFile}
-                onRemoveMentionedDoc={removeMentionedDoc}
-                onRemoveMentionedFolder={removeMentionedFolder}
-                onMentionSearchChange={setMentionSearch}
-                onMentionIndexChange={setMentionIndex}
-                onSelectFile={selectFile}
-                onSelectFolder={selectFolder}
-                onCloseMention={closeMention}
-              />
-            </>
-          )}
-        </Panel>
-      </PanelGroup>
     </div>
   );
 }

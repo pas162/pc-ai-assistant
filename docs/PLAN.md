@@ -388,3 +388,27 @@ Goal: Automate Jira/Zephyr ticket → SWTBot Java code generation.
 - [x] Upload dropdown uses React state (not CSS hover) with click-outside-to-close
 - [x] Chevron rotates 180° when upload dropdown is open
 - [x] Processing indicator in stats bar (pulsing blue dot when docs are processing)
+
+### Navigation & Layout Refactor (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Replaced icon-rail + overlay drawer pattern with a persistent left sidebar (Linear/Notion-style)
+- [x] Sidebar shows workspaces as a collapsible tree; active workspace expands inline with its chat sessions
+- [x] Session list rendered inside sidebar — no more overlay, no resizable split between sessions and chat
+- [x] Chat panel is always full-width — no panel resizing to fight with
+- [x] Knowledge Base and Settings navigation moved to bottom of sidebar (always visible)
+- [x] Removed ActivityBar (icon rail) — sidebar replaces it entirely
+- [x] Removed react-resizable-panels from navigation layer (App.tsx / ChatPanel.tsx)
+- [x] Session management lifted from ChatPanel → WorkspaceDetail → App (via onSessionsUpdate callback + ref)
+- [x] Sidebar receives real session handlers via sessionActionsRef — new/select/delete session all work
+- [x] window.confirm replaced with ConfirmModal throughout (WorkspaceDetail, WorkspaceList, SessionsSidebar)
+- [x] Workspaces flyout auto-closes when a workspace is selected
+
+### Settings UI Redesign (Completed outside sprint plan) ✅ COMPLETE
+
+- [x] Replaced four isolated save-per-field cards with grouped sections (LLM Provider / Jira Integration)
+- [x] Each group has a single "Save changes" button in the group header
+- [x] Dirty-state tracking — button is blue when unsaved changes exist, shows "Saved" with green check otherwise
+- [x] All fields in a group saved in parallel (Promise.all) on one click or Enter key
+- [x] Inline label + description layout (label column left, input right) — cleaner scan
+- [x] Monospace font for credential inputs
+- [x] Group icons (Bot for LLM, Trello for Jira) with rounded tile style

@@ -247,6 +247,11 @@ const ChatInput = memo(function ChatInput({
               <Database size={13} />
             </button>
           </div>
+          {question.length > 0 && (
+            <span className="text-xs text-gray-600 shrink-0">
+              {question.length}
+            </span>
+          )}
           {loading ? (
             <button
               onClick={onStop}

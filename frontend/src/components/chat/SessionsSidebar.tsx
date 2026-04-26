@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { MessageSquare, Trash2, Plus } from "lucide-react";
 import type { ChatSession, ChatSessionDetail } from "../../api";
+import { ConfirmModal } from "../Modal";
 
 interface SessionsSidebarProps {
   // Data
@@ -12,7 +14,7 @@ interface SessionsSidebarProps {
   // Handlers
   onNewSession: () => void;
   onSelectSession: (session: ChatSession) => void;
-  onDeleteSession: (e: React.MouseEvent, sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
   onStartRename: (e: React.MouseEvent, session: ChatSession) => void;
   onRenameChange: (value: string) => void;
   onRenameSubmit: (sessionId: string) => void;
@@ -37,6 +39,9 @@ export default function SessionsSidebar({
   onRenameSubmit,
   onRenameKeyDown,
 }: SessionsSidebarProps) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const confirmDeleteSession = sessions.find((s) => s.id === confirmDeleteId);
+
   return (
     <>
       {/* ── Header row — clicking anywhere creates a new chat ── */}
@@ -62,7 +67,15 @@ export default function SessionsSidebar({
       {/* ── Session list ── */}
       <div className="flex-1 overflow-y-auto flex flex-col gap-1 py-1 custom-scrollbar">
         {loadingSessions ? (
-          <p className="text-xs text-gray-500 text-center mt-4">Loading...</p>
+          <div className="flex flex-col gap-1.5 px-2 mt-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-8 rounded bg-gray-800 animate-pulse"
+                style={{ opacity: 1 - i * 0.2 }}
+              />
+            ))}
+          </div>
         ) : sessions.length === 0 ? (
           <p className="text-xs text-gray-500 text-center mt-4">No chats yet</p>
         ) : (
@@ -107,7 +120,7 @@ export default function SessionsSidebar({
               {/* ── Delete button (visible on hover) ── */}
               {renamingId !== session.id && (
                 <button
-                  onClick={(e) => onDeleteSession(e, session.id)}
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
                   className="opacity-0 group-hover:opacity-100 text-gray-400
                              hover:text-red-400 ml-1 shrink-0 transition-opacity"
                   title="Delete session"
@@ -119,6 +132,19 @@ export default function SessionsSidebar({
           ))
         )}
       </div>
+
+      {/* ── Delete confirm modal ── */}
+      {confirmDeleteSession && (
+        <ConfirmModal
+          message={`Delete "${confirmDeleteSession.title}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            onDeleteSession(confirmDeleteSession.id);
+            setConfirmDeleteId(null);
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </>
   );
 }

@@ -8,6 +8,7 @@ import {
 import type { Workspace } from "../api";
 import type { ToastType } from "../hooks/useToast";
 import { FolderOpen, MoreVertical, Pencil, Trash2, Plus } from "lucide-react";
+import { Modal, ConfirmModal } from "./Modal";
 
 interface WorkspaceListProps {
   selectedWorkspaceId: string | null;
@@ -38,6 +39,7 @@ export default function WorkspaceList({
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Workspace | null>(null);
 
   const fetchWorkspaces = async () => {
     try {
@@ -113,10 +115,10 @@ export default function WorkspaceList({
   };
 
   const handleDelete = async (ws: Workspace) => {
-    if (!window.confirm(`Delete "${ws.name}"? This cannot be undone.`)) return;
     try {
       await deleteWorkspace(ws.id);
       setOpenMenuId(null);
+      setConfirmDelete(null);
       await fetchWorkspaces();
       onWorkspaceDeleted(ws.id);
       showToast("Workspace deleted", "info");
@@ -126,7 +128,7 @@ export default function WorkspaceList({
   };
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header — full row is clickable, bottom border acts as separator */}
       <button
         onClick={() => setShowModal(true)}
@@ -166,7 +168,8 @@ export default function WorkspaceList({
           >
             {/* Name + doc count — no icon */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate flex items-center gap-1">
+              <p className={`text-sm font-medium truncate flex items-center gap-1
+                ${selectedWorkspaceId === ws.id ? "text-white" : "text-gray-200"}`}>
                 <FolderOpen size={14} className="shrink-0 text-blue-400" />
                 {ws.name}
               </p>
@@ -212,7 +215,7 @@ export default function WorkspaceList({
                     </span>
                   </button>
                   <button
-                    onClick={() => handleDelete(ws)}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(ws); setOpenMenuId(null); }}
                     className="w-full text-left px-4 py-2 text-sm text-red-400
                                hover:bg-gray-700 transition-colors"
                   >
@@ -229,124 +232,121 @@ export default function WorkspaceList({
 
       {/* ── CREATE MODAL ──────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-gray-700">
-            <h2 className="text-gray-100 text-lg font-semibold mb-4">
-              New Workspace
-            </h2>
-
-            <label className="block text-gray-400 text-sm font-medium mb-1">
-              Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. HR Documents"
-              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
-                         text-gray-200 placeholder-gray-500 focus:outline-none
-                         focus:ring-2 focus:ring-blue-500 mb-4"
-              autoFocus
-            />
-
-            <label className="block text-gray-400 text-sm font-medium mb-1">
-              Description{" "}
-              <span className="text-gray-600 font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              placeholder="What is this workspace for?"
-              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
-                         text-gray-200 placeholder-gray-500 focus:outline-none
-                         focus:ring-2 focus:ring-blue-500 mb-6"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowModal(false);
-                  setNewName("");
-                  setNewDescription("");
-                }}
-                className="px-4 py-2 text-sm text-gray-400 border border-gray-600
-                           rounded hover:bg-gray-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={!newName.trim() || creating}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded
-                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                           transition-colors"
-              >
-                {creating ? "Creating..." : "Create"}
-              </button>
-            </div>
+        <Modal
+          title="New Workspace"
+          onClose={() => { setShowModal(false); setNewName(""); setNewDescription(""); }}
+        >
+          <label className="block text-gray-400 text-sm font-medium mb-1">
+            Name <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            placeholder="e.g. HR Documents"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                       text-gray-200 placeholder-gray-500 focus:outline-none
+                       focus:ring-2 focus:ring-blue-500 mb-4"
+            autoFocus
+          />
+          <label className="block text-gray-400 text-sm font-medium mb-1">
+            Description{" "}
+            <span className="text-gray-600 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            placeholder="What is this workspace for?"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                       text-gray-200 placeholder-gray-500 focus:outline-none
+                       focus:ring-2 focus:ring-blue-500 mb-6"
+          />
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => { setShowModal(false); setNewName(""); setNewDescription(""); }}
+              className="px-4 py-2 text-sm text-gray-400 border border-gray-600
+                         rounded hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={!newName.trim() || creating}
+              className="px-4 py-2 text-sm text-white bg-blue-600 rounded
+                         hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                         transition-colors"
+            >
+              {creating ? "Creating..." : "Create"}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── EDIT MODAL ────────────────────────────────── */}
       {showEditModal && editingWorkspace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-md mx-4 p-6 border border-gray-700">
-            <h2 className="text-gray-100 text-lg font-semibold mb-4">
-              Edit Workspace
-            </h2>
-
-            <label className="block text-gray-400 text-sm font-medium mb-1">
-              Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
-                         text-gray-200 placeholder-gray-500 focus:outline-none
-                         focus:ring-2 focus:ring-blue-500 mb-4"
-              autoFocus
-            />
-
-            <label className="block text-gray-400 text-sm font-medium mb-1">
-              Description{" "}
-              <span className="text-gray-600 font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              placeholder="What is this workspace for?"
-              className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
-                         text-gray-200 placeholder-gray-500 focus:outline-none
-                         focus:ring-2 focus:ring-blue-500 mb-6"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingWorkspace(null);
-                }}
-                className="px-4 py-2 text-sm text-gray-400 border border-gray-600
-                           rounded hover:bg-gray-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdate}
-                disabled={!editName.trim() || saving}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded
-                           hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                           transition-colors"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
+        <Modal
+          title="Edit Workspace"
+          onClose={() => { setShowEditModal(false); setEditingWorkspace(null); }}
+        >
+          <label className="block text-gray-400 text-sm font-medium mb-1">
+            Name <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                       text-gray-200 placeholder-gray-500 focus:outline-none
+                       focus:ring-2 focus:ring-blue-500 mb-4"
+            autoFocus
+          />
+          <label className="block text-gray-400 text-sm font-medium mb-1">
+            Description{" "}
+            <span className="text-gray-600 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
+            placeholder="What is this workspace for?"
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2
+                       text-gray-200 placeholder-gray-500 focus:outline-none
+                       focus:ring-2 focus:ring-blue-500 mb-6"
+          />
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => { setShowEditModal(false); setEditingWorkspace(null); }}
+              className="px-4 py-2 text-sm text-gray-400 border border-gray-600
+                         rounded hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdate}
+              disabled={!editName.trim() || saving}
+              className="px-4 py-2 text-sm text-white bg-blue-600 rounded
+                         hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
+                         transition-colors"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* ── DELETE CONFIRM MODAL ──────────────────────── */}
+      {confirmDelete && (
+        <ConfirmModal
+          message={`Delete "${confirmDelete.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   );
