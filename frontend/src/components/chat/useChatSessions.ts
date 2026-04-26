@@ -14,6 +14,7 @@ interface UseChatSessionsProps {
   activeSessionId: string | null;
   onSessionChange: (workspaceId: string, sessionId: string) => void;
   showToast: (message: string, type: ToastType) => void;
+  selectedModel?: string;
 }
 
 export function useChatSessions({
@@ -21,6 +22,7 @@ export function useChatSessions({
   activeSessionId,
   onSessionChange,
   showToast,
+  selectedModel,
 }: UseChatSessionsProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSessionDetail | null>(null);
@@ -89,14 +91,14 @@ export function useChatSessions({
 
   const handleNewSession = useCallback(async () => {
     try {
-      const s = await createChatSession(workspaceId, "New Chat");
+      const s = await createChatSession(workspaceId, "New Chat", selectedModel);
       setSessions((prev) => [s, ...prev]);
       setActiveSession({ ...s, messages: [] });
       showToast("New chat created!", "success");
     } catch {
       showToast("Failed to create chat session", "error");
 }
-  }, [workspaceId, showToast]);
+  }, [workspaceId, showToast, selectedModel]);
 
   const handleSelectSession = useCallback(
     async (session: ChatSession) => {

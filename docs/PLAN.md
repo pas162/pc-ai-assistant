@@ -59,8 +59,181 @@ An internal AI platform with:
 
 - [x] Step 23: Settings UI (API token management) ✅ COMPLETE
 - [ ] Step 24: Error handling + logging
-- [ ] Step 25: Docker Compose (run everything together)
+- [x] Step 25: Docker Compose (run everything together) ✅ COMPLETE
 - [ ] Step 26: Final testing + documentation
+
+---
+
+## Workflow Automation Phase (New)
+
+### Overview
+Extending PC-AI-Assistant to automate two critical team workflows:
+1. **PIN Database Generation** — Convert PDF User Manuals + Excel files → XML pin databases for Renesas Smart Configurator
+2. **SWTBot Test Script Generation** — Convert Jira/Zephyr tickets → SWTBot Java automation scripts for e² studio
+
+### Why Extend vs New Tool
+- Reuse existing document processing (PDF/Excel extraction already works)
+- Reuse LLM integration (configurable API keys in Settings)
+- Workspace isolation for different chip families
+- Interactive chat for refinement (better than batch jobs)
+
+---
+
+### Sprint 7 — PIN Database Workflow (Steps 27-32)
+
+Goal: Automate the VBA/XSLM → Python + LLM pipeline for pin database generation.
+
+**Current Manual Process:**
+1. Receive PDF (User Manual) + Excel (PIN definitions)
+2. Convert XLSX → XSLM, run VBA macro to generate XML
+3. Copy XML to source code, build, test with RCPTT
+4. Verify each pin function matches Excel
+
+**Automated Workflow:**
+
+- [ ] Step 27: Multi-sheet Excel parser for PIN definitions
+  - Parse multiple sheets (GPIO, SCIF, SPI, etc.)
+  - Extract: Pin name, function, direction, electrical specs
+  - Handle merged cells, headers, footnotes
+
+- [ ] Step 28: PIN Database Agent backend
+  - `workflows/pin_database_agent.py` module
+  - LLM prompt: cross-reference PDF UM + Excel data
+  - Output structured PIN definitions (JSON intermediate)
+
+- [ ] Step 29: XML Generation with Jinja2 templates
+  - `templates/pins_gpio.xml.j2`, `pins_scif.xml.j2`
+  - Schema validation against Renesas XSD
+  - Multiple output files per chip family
+
+- [ ] Step 30: PIN Database Workflow UI
+  - New "Workflows" section in sidebar
+  - Upload: PDF (UM) + Excel (PIN data)
+  - Chip family selector (RZ/G3E, RZ/G2L, etc.)
+  - Generate button + progress indicator
+
+- [ ] Step 31: Validation integration
+  - Schema validation results display
+  - Diff view: generated vs expected (if reference provided)
+  - Download all XML files as ZIP
+
+- [ ] Step 32: PIN Database workspace type
+  - Specialized workspace for chip projects
+  - Pre-configured templates per chip family
+  - Store generated outputs in workspace folder
+
+---
+
+### Sprint 8 — SWTBot Script Generation (Steps 33-38)
+
+Goal: Automate Jira/Zephyr ticket → SWTBot Java code generation.
+
+**Current Manual Process:**
+1. Open Jira, read Zephyr test case manually
+2. Write SWTBot Java code by hand
+3. Test in e² studio, iterate
+
+**Automated Workflow:**
+
+- [ ] Step 33: Jira API integration
+  - Settings: Jira base URL + API token
+  - `services/jira_client.py` — fetch ticket by ID
+  - Parse: Test name, description, steps, expected results
+
+- [ ] Step 34: SWTBot Agent backend
+  - `workflows/swtbot_agent.py` module
+  - LLM prompt: generate SWTBot Java from test case
+  - Context: e² studio plugin conventions, Renesas-specific dialogs
+
+- [ ] Step 35: SWTBot template library
+  - Common patterns: open perspective, create project, configure build
+  - Widget-specific helpers: button clicks, text input, tree navigation
+  - Assertion templates: verify labels, check console output
+
+- [ ] Step 36: SWTBot Workflow UI
+  - Jira ticket ID input with fetch button
+  - Display fetched test case (read-only preview)
+  - Generate button → code preview with syntax highlighting
+  - Copy to clipboard + download as .java file
+
+- [ ] Step 37: Test case refinement chat
+  - After generation, start chat session with SWTBot context
+  - "Add error handling for this step"
+  - "Change button click to menu selection"
+  - Iterate without re-fetching from Jira
+
+- [ ] Step 38: SWTBot workspace type
+  - Link multiple Jira tickets to one workspace
+  - Batch generate all test scripts
+  - Export as Eclipse project fragment
+
+---
+
+### Sprint 9 — Pipeline Execution & CI/CD (Steps 39-44)
+
+- [ ] Step 39: Workflow executor engine
+  - `workflows/executor.py` — run workflows step-by-step
+  - Progress tracking per step (0-100%)
+  - Pause/resume/cancel support
+
+- [ ] Step 40: Validation automation
+  - RCPTT runner integration (if CLI available)
+  - Parse RCPTT XML results, display in UI
+  - Failures linked back to source (PDF page, Excel row)
+
+- [ ] Step 41: Workflow history & versioning
+  - Store each workflow run in database
+  - Compare outputs across versions
+  - Rollback to previous generation
+
+- [ ] Step 42: Batch operations
+  - Upload multiple PDF+Excel pairs
+  - Queue for overnight processing
+  - Email/notification on completion
+
+- [ ] Step 43: Export & delivery
+  - ZIP export with generated files + manifest
+  - Git commit integration (auto-commit to branch)
+  - PR creation with generated changes
+
+- [ ] Step 44: Workflow analytics
+  - Success/failure rates per workflow type
+  - LLM token usage tracking
+  - Time saved vs manual process metrics
+
+---
+
+### Sprint 10 — Enterprise Features (Steps 45-50)
+
+- [ ] Step 45: Multi-user collaboration
+  - Share workspaces between team members
+  - Comments on generated outputs
+  - Approval workflow before using generated XML
+
+- [ ] Step 46: Audit logging
+  - Log all LLM calls (prompt + response)
+  - Log all document access
+  - Compliance reporting
+
+- [ ] Step 47: Custom workflow builder
+  - UI for creating new workflow types
+  - Drag-and-drop steps: upload, parse, generate, validate
+  - Save custom workflows as templates
+
+- [ ] Step 48: Integration with existing tools
+  - Renesas Smart Configurator CLI (if available)
+  - e² studio headless mode for test execution
+  - Jenkins/GitLab CI webhook triggers
+
+- [ ] Step 49: Advanced LLM features
+  - Few-shot examples per chip family
+  - Fine-tuned model on team-specific patterns
+  - Multi-model comparison (run with 2 LLMs, pick best)
+
+- [ ] Step 50: Deployment & training
+  - Team onboarding documentation
+  - Video tutorials for each workflow
+  - Feedback collection & improvement loop
 
 ### Frontend Polish (Completed outside sprint plan) ✅ COMPLETE
 

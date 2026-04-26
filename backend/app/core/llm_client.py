@@ -37,15 +37,30 @@ def chat_with_llm(messages: list, model: str = None) -> str:
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+    # Try both OpenAI format (/chat/completions) and internal format (/api/chat/completions)
+    paths_to_try = ["/chat/completions", "/api/chat/completions"]
+    
     with httpx.Client(timeout=60.0) as client:
-        response = client.post(
-            f"{base_url}/api/chat/completions",
-            json=request_body,
-            headers=headers
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        last_error = None
+        for path in paths_to_try:
+            try:
+                response = client.post(
+                    f"{base_url}{path}",
+                    json=request_body,
+                    headers=headers
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code == 404:
+                    continue  # Try next path
+                raise  # Re-raise if not 404
+        # If all paths failed, raise the last error
+        if last_error:
+            raise last_error
+        raise ValueError("Failed to connect to LLM API")
 
 
 def stream_chat_with_llm(
@@ -66,28 +81,43 @@ def stream_chat_with_llm(
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
         }
+    # Try both OpenAI format (/chat/completions) and internal format (/api/chat/completions)
+    paths_to_try = ["/chat/completions", "/api/chat/completions"]
+    
     with httpx.Client(timeout=60.0) as client:
-        with client.stream(
-            "POST",
-            f"{base_url}/api/chat/completions",
-            json=request_body,
-            headers=headers
-        ) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if not line or not line.startswith("data: "):
-                    continue
-                data = line[6:]
-                if data == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(data)
-                    delta = chunk["choices"][0].get("delta", {})
-                    text = delta.get("content", "")
-                    if text:
-                        yield text
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    continue
+        last_error = None
+        for path in paths_to_try:
+            try:
+                with client.stream(
+                    "POST",
+                    f"{base_url}{path}",
+                    json=request_body,
+                    headers=headers
+                ) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            delta = chunk["choices"][0].get("delta", {})
+                            text = delta.get("content", "")
+                            if text:
+                                yield text
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+                    return  # Success, exit the function
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code == 404:
+                    continue  # Try next path
+                raise  # Re-raise if not 404
+        # If all paths failed, raise the last error
+        if last_error:
+            raise last_error
 
 
 def test_llm_connection() -> dict:

@@ -219,3 +219,111 @@ The chat input has been refactored into `frontend/src/components/chat/`:
 | `types.ts`            | Shared types: AttachedFile, FolderNode, MentionItem, helpers |
 
 `frontend/src/components/ChatPanel.tsx` re-exports from the new location for backward compatibility.
+
+---
+
+## Workflow Automation Requirements
+
+### PIN Database Generation Workflow
+
+**User Story:** As a hardware engineer, I want to upload a chip User Manual (PDF) and PIN definition Excel file, and automatically generate XML pin databases for the Renesas Smart Configurator tool, so I don't need to manually run VBA macros and verify each pin.
+
+**Inputs:**
+- PDF: User Manual for specific chip (e.g., RZ/G3E)
+- Excel: Multi-sheet file with PIN names, functions, electrical characteristics
+
+**Outputs:**
+- pins_gpio.xml — GPIO pin configurations
+- pins_scif.xml — Serial interface pin configurations
+- pins_spi.xml — SPI pin configurations
+- (Additional sheets as needed)
+- validation_report.log — Schema validation results
+
+**Workflow Steps:**
+1. User creates "PIN Database Workspace" with chip family selector
+2. Upload PDF (User Manual) + Excel (PIN definitions) — both required
+3. System extracts text from PDF and parses all Excel sheets
+4. LLM cross-references: matches Excel PIN names with UM descriptions
+5. Generate structured PIN definitions (JSON intermediate)
+6. Apply Jinja2 templates → XML files
+7. Validate against Renesas XSD schemas
+8. Present results: download individual files or ZIP bundle
+9. Option to start chat for manual corrections
+
+**Technical Requirements:**
+| Feature | Specification |
+|---------|-------------|
+| Excel Parser | Multi-sheet support, merged cell handling, header/footer detection |
+| LLM Prompt | Cross-reference context: UM sections matched to Excel rows |
+| XML Templates | Jinja2-based, schema-compliant, chip-family variants |
+| Validation | XSD schema check, show line-level errors |
+| Output | ZIP download, or individual file preview with syntax highlighting |
+
+---
+
+### SWTBot Script Generation Workflow
+
+**User Story:** As a QA engineer, I want to enter a Jira/Zephyr ticket ID and automatically generate SWTBot Java test scripts for e² studio, so I don't need to manually write automation code for each test case.
+
+**Inputs:**
+- Jira/Zephyr ticket ID (e.g., ZEPHYR-12345)
+- User's Jira API token (stored in Settings)
+
+**Outputs:**
+- TestCaseName.java — Complete SWTBot test class
+- Import statements block
+- Setup/teardown code suggestions
+
+**Workflow Steps:**
+1. User creates "SWTBot Workspace" or uses existing
+2. Enter Jira ticket ID in workflow panel
+3. System fetches ticket via Jira REST API
+4. Parse: test name, description, test steps, expected results
+5. LLM generates SWTBot Java code using e² studio conventions
+6. Display: syntax-highlighted code preview
+7. User options: copy to clipboard, download .java file, or refine in chat
+8. Chat context: LLM knows the generated code and test case
+
+**Technical Requirements:**
+| Feature | Specification |
+|---------|-------------|
+| Jira Integration | REST API v2, personal token auth, configurable base URL |
+| Ticket Parser | Extract Zephyr test steps, expected results, preconditions |
+| LLM Prompt | SWTBot-specific: bot.button(), bot.text(), bot.tree(), assertions |
+| Code Templates | e² studio perspective handling, Renesas dialog patterns |
+| Refinement Chat | Context-aware: "Add wait before this click", "Handle exception" |
+
+---
+
+### Workflow Infrastructure Requirements
+
+**Shared Components:**
+
+| Component | Purpose |
+|-----------|---------|
+| `workflows/` module | Backend package for all workflow agents |
+| `WorkflowType` enum | PIN_DATABASE, SWTBOT_SCRIPT, CUSTOM |
+| WorkflowExecutor | Step-by-step runner with pause/resume/cancel |
+| WorkflowRun model | DB table: tracks each execution, inputs, outputs, status |
+| WorkflowTemplate | Predefined configurations per chip family |
+
+**UI Requirements:**
+
+| Feature | Specification |
+|---------|-------------|
+| Workflow Sidebar Section | Collapsible, below "Chats" section |
+| Workflow Cards | Visual cards for each available workflow type |
+| Progress Display | Per-step progress (0-100%), overall workflow progress |
+| Cancel/Retry | Cancel running workflow, retry failed step |
+| History View | Past workflow runs per workspace, with outputs |
+| Diff Viewer | Compare generated output with previous version |
+
+**Integration Points:**
+
+| Integration | Data Flow |
+|-------------|-----------|
+| Jira API | Settings stores token; workflow fetches ticket |
+| LLM API | Reuse existing client; workflow-specific prompts |
+| Document Processing | Reuse PDF/Excel extractors |
+| Chat System | Workflow output → chat context for refinement |
+| Export | ZIP generation, file download, clipboard copy |

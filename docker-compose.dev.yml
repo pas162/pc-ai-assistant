@@ -1,0 +1,33 @@
+# Development Docker Compose
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# This adds hot-reload for both frontend and backend during development
+
+services:
+  backend:
+    volumes:
+      # Mount source code for hot reload
+      - ./backend:/app
+      # Persist node_modules (don't overwrite with host)
+      - backend_node_modules:/app/node_modules
+      # Persist uploaded docs
+      - ./backend/uploaded_docs:/app/uploaded_docs
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    volumes:
+      # Mount source code for hot reload
+      - ./frontend:/app
+      # Persist node_modules (don't overwrite with host mount)
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8000}
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+
+volumes:
+  backend_node_modules:
+  frontend_node_modules:

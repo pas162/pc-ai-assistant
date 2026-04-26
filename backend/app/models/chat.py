@@ -31,6 +31,12 @@ class ChatSession(Base):
         default="New Chat"
     )
 
+    # Model used for this session (e.g. "llama-3.1-70b-versatile")
+    model: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow

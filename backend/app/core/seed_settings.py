@@ -5,6 +5,8 @@ from app.models.setting import Setting
 DEFAULT_SETTINGS = {
     "llm_api_base_url": "http://10.210.106.4:8080",
     "llm_api_token": "",   # empty by default — user must set via UI
+    "jira_base_url": "",   # e.g., https://yourcompany.atlassian.net
+    "jira_api_token": "",  # Personal Access Token from Jira
 }
 
 def seed_default_settings(db: Session) -> None:

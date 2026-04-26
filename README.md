@@ -51,7 +51,39 @@ docker compose down -v
 
 ---
 
-## 🛠️ Manual Setup (For Developers)
+## � Development Mode (Hot Reload)
+
+For development with automatic code reloading:
+
+### Windows (PowerShell)
+```powershell
+.\scripts\docker-dev.ps1 up
+```
+
+### Linux/Mac
+```bash
+./scripts/docker-dev.sh up
+```
+
+This mounts your local source code into containers:
+- **Backend:** Python code changes trigger auto-reload
+- **Frontend:** Vite dev server with HMR (Hot Module Replacement)
+
+### Development Commands
+
+| Command | Windows | Linux/Mac |
+|---------|---------|-----------|
+| Start | ` .\scripts\docker-dev.ps1 up` | `./scripts/docker-dev.sh up` |
+| Stop | ` .\scripts\docker-dev.ps1 down` | `./scripts/docker-dev.sh down` |
+| Rebuild | ` .\scripts\docker-dev.ps1 build` | `./scripts/docker-dev.sh build` |
+| Logs | ` .\scripts\docker-dev.ps1 logs` | `./scripts/docker-dev.sh logs` |
+| Clean all | ` .\scripts\docker-dev.ps1 clean` | `./scripts/docker-dev.sh clean` |
+| Backend shell | ` .\scripts\docker-dev.ps1 shell-backend` | `./scripts/docker-dev.sh shell-backend` |
+| Frontend shell | ` .\scripts\docker-dev.ps1 shell-frontend` | `./scripts/docker-dev.sh shell-frontend` |
+
+---
+
+## �🛠️ Manual Setup (For Developers)
 
 Use this if you want to run services individually for development.
 

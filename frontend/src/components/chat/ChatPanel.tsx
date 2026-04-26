@@ -65,6 +65,7 @@ export default function ChatPanel({
     activeSessionId,
     onSessionChange,
     showToast,
+    selectedModel,
   });
 
   const { loading, streamingText, lastSources, handleSend, handleStop } =
@@ -112,10 +113,28 @@ export default function ChatPanel({
       try {
         setModelsLoading(true);
         const models = await fetchAvailableModels();
-        if (!cancelled)
-          setAvailableModels(Array.from(new Set([DEFAULT_MODEL, ...models])));
+        
+        if (!cancelled) {
+          if (models.length === 0) {
+            // No models available from API
+            setAvailableModels([]);
+            showToast("No available models from LLM API", "error");
+          } else if (models.includes(DEFAULT_MODEL)) {
+            // Default model exists in list, use it
+            setAvailableModels(models);
+            setSelectedModel(DEFAULT_MODEL);
+          } else {
+            // Default not in list, use first available
+            setAvailableModels(models);
+            setSelectedModel(models[0]);
+            showToast(`Using ${models[0]} (default not available)`, "info");
+          }
+        }
       } catch {
-        if (!cancelled) setAvailableModels([DEFAULT_MODEL]);
+        if (!cancelled) {
+          setAvailableModels([]);
+          showToast("Failed to fetch models from LLM API", "error");
+        }
       } finally {
         if (!cancelled) setModelsLoading(false);
       }
@@ -124,13 +143,20 @@ export default function ChatPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [showToast]);
 
   // ── Panel collapse sync ───────────────────────────────────────────────────
   useEffect(() => {
     if (sessionsOpen) sessionsPanelRef.current?.expand();
     else sessionsPanelRef.current?.collapse();
   }, [sessionsOpen]);
+
+  // ── Sync selected model with session's model ───────────────────────────────
+  useEffect(() => {
+    if (activeSession?.model && availableModels.includes(activeSession.model)) {
+      setSelectedModel(activeSession.model);
+    }
+  }, [activeSession?.id, activeSession?.model, availableModels]);
 
   // ── Memoize onSend to avoid re-renders ────────────────────────────────────
   const onSend = useCallback(() => {

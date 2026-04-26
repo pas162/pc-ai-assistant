@@ -8,6 +8,7 @@ from typing import Optional
 class CreateSessionRequest(BaseModel):
     workspace_id: str
     title: str = "New Chat"
+    model: str | None = None
 
 
 class AttachedFileRequest(BaseModel):
@@ -43,6 +44,7 @@ class ChatSessionResponse(BaseModel):
     id: str
     workspace_id: str
     title: str
+    model: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -52,6 +54,7 @@ class ChatSessionDetailResponse(BaseModel):
     id: str
     workspace_id: str
     title: str
+    model: str | None = None
     created_at: datetime
     messages: list[ChatMessageResponse] = []
 

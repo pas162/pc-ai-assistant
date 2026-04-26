@@ -48,6 +48,7 @@ def create_session(request: CreateSessionRequest, db: Session = Depends(get_db))
         id=str(uuid.uuid4()),
         workspace_id=request.workspace_id,
         title=request.title,
+        model=request.model,
     )
     db.add(session)
     db.commit()
@@ -374,6 +375,11 @@ def stream_message(
             )
             db.add(user_msg)
             db.add(assistant_msg)
+            
+            # ── Save model used for this session ──────────────────────
+            if request.model:
+                session.model = request.model
+            
             db.commit()
 
             # ── Auto-title on first message ───────────────────────────

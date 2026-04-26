@@ -23,6 +23,20 @@ const SETTING_KEYS = [
     secret: false,
     default: "http://10.210.106.4:8080", // ✅ matches config.py
   },
+  {
+    key: "jira_base_url",
+    label: "Jira Base URL",
+    description: "Your Jira instance URL (e.g., https://company.atlassian.net)",
+    secret: false,
+    default: "",
+  },
+  {
+    key: "jira_api_token",
+    label: "Jira API Token",
+    description: "Personal Access Token from your Jira account settings",
+    secret: true,
+    default: "",
+  },
 ];
 
 export default function Settings({ showToast }: SettingsProps) {

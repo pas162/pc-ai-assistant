@@ -8,12 +8,14 @@ import {
 import type { Workspace, Document, Folder } from "../api";
 import type { ToastType } from "../hooks/useToast";
 import ChatPanel from "./chat/ChatPanel";
+import { SwtbotWorkflow } from "./workflows";
 import {
   ChevronRight,
   ChevronDown,
   Folder as FolderIcon,
   FolderOpen,
   FileText,
+  Bot,
 } from "lucide-react";
 
 interface WorkspaceDetailProps {
@@ -23,7 +25,7 @@ interface WorkspaceDetailProps {
   onSessionChange: (workspaceId: string, sessionId: string) => void;
 }
 
-type Tab = "chat" | "documents";
+type Tab = "chat" | "documents" | "workflows";
 
 // ── Folder tree node type ─────────────────────────────────────────────────
 interface FolderTreeNode {
@@ -567,6 +569,20 @@ export default function WorkspaceDetail({
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab("workflows")}
+            className={`px-3 py-2 text-xs font-medium transition-colors border-b-2
+              flex items-center gap-1.5
+              ${
+                activeTab === "workflows"
+                  ? "border-indigo-500 text-indigo-400"
+                  : "border-transparent text-gray-500 hover:text-gray-300"
+              }`}
+          >
+            <Bot size={14} />
+            Workflows
+          </button>
         </div>
       </div>
 
@@ -585,6 +601,13 @@ export default function WorkspaceDetail({
             workspaceFolders={folders}
           />
         </div>
+
+        {/* Workflows tab */}
+        {activeTab === "workflows" && (
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            <SwtbotWorkflow />
+          </div>
+        )}
 
         {/* Documents tab */}
         {activeTab === "documents" && (

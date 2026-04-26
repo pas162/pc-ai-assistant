@@ -178,6 +178,7 @@ export interface ChatSession {
   id: string;
   workspace_id: string;
   title: string;
+  model: string | null;
   created_at: string;
 }
 
@@ -213,10 +214,12 @@ export interface StreamDoneData {
 export const createChatSession = async (
   workspaceId: string,
   title: string = "New Chat",
+  model?: string,
 ): Promise<ChatSession> => {
   const response = await api.post("/chat/sessions", {
     workspace_id: workspaceId,
     title,
+    model,
   });
   return response.data;
 };
@@ -386,5 +389,67 @@ export const upsertSetting = async (
   value: string,
 ): Promise<Setting> => {
   const response = await api.put(`/settings/${key}`, { value });
+  return response.data;
+};
+
+// ─── Workflow API calls ──────────────────────────────────
+
+export interface JiraTicketData {
+  key: string;
+  name: string;
+  description: string;
+  steps: Array<{ step: string; description: string; expected: string }>;
+  precondition: string;
+  priority: string;
+  component: string;
+}
+
+export interface JiraConfigStatus {
+  configured: boolean;
+  message: string;
+}
+
+export interface GenerateScriptRequest {
+  ticket_data: JiraTicketData;
+  additional_context?: string;
+}
+
+export interface GenerateScriptResponse {
+  code: string;
+  test_key: string;
+  test_name: string;
+}
+
+// GET /workflows/jira/status — check Jira configuration
+export const getJiraStatus = async (): Promise<JiraConfigStatus> => {
+  const response = await api.get("/workflows/jira/status");
+  return response.data;
+};
+
+// POST /workflows/jira/fetch — fetch Jira ticket
+export const fetchJiraTicket = async (ticketId: string): Promise<JiraTicketData> => {
+  const response = await api.post("/workflows/jira/fetch", { ticket_id: ticketId });
+  return response.data;
+};
+
+// POST /workflows/swtbot/generate — generate SWTBot script
+export const generateSwtbotScript = async (
+  request: GenerateScriptRequest,
+): Promise<GenerateScriptResponse> => {
+  const response = await api.post("/workflows/swtbot/generate", request);
+  return response.data;
+};
+
+// POST /workflows/swtbot/refine — refine SWTBot script
+export const refineSwtbotScript = async (
+  originalCode: string,
+  refinementRequest: string,
+  ticketData: JiraTicketData,
+): Promise<{ code: string }> => {
+  const response = await api.post("/workflows/swtbot/refine", {
+    original_code: originalCode,
+    refinement_request: refinementRequest,
+    ticket_data: ticketData,
+  });
   return response.data;
 };
