@@ -84,30 +84,33 @@ export default function CodeBlock({
       </div>
 
       {/* ── Code ── */}
-      <SyntaxHighlighter
-        style={oneDark}
-        language={language}
-        showLineNumbers
-        lineNumberStyle={{
-          color: "#3d4150",
-          fontSize: "0.72rem",
-          paddingRight: "1.2em",
-          userSelect: "none",
-          minWidth: "2.5em",
-        }}
-        PreTag="div"
-        customStyle={{
-          margin: 0,
-          borderRadius: 0,
-          border: "none",
-          background: "#1a1d27",
-          fontSize: "0.8rem",
-          lineHeight: "1.65",
-          padding: "1rem 1rem 1rem 0.5rem",
-        }}
-      >
-        {children}
-      </SyntaxHighlighter>
+      <div className="overflow-x-auto code-scrollbar">
+        <SyntaxHighlighter
+          style={oneDark}
+          language={language}
+          showLineNumbers
+          lineNumberStyle={{
+            color: "#3d4150",
+            fontSize: "0.72rem",
+            paddingRight: "1.2em",
+            userSelect: "none",
+            minWidth: "2.5em",
+          }}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            borderRadius: 0,
+            border: "none",
+            background: "#1a1d27",
+            fontSize: "0.8rem",
+            lineHeight: "1.65",
+            padding: "1rem 1rem 1rem 0.5rem",
+            overflowX: "visible",
+          }}
+        >
+          {children}
+        </SyntaxHighlighter>
+      </div>
     </div>
   );
 }
